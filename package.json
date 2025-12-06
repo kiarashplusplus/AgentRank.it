@@ -1,0 +1,77 @@
+{
+  "name": "agentrank",
+  "version": "0.1.0",
+  "description": "The PageSpeed Insights for the Agentic Web - measure how reliably an AI agent can navigate your site",
+  "author": "Kiarash Adl",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "bin": {
+    "agentrank": "./dist/cli/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./mcp": {
+      "import": "./dist/mcp/server.js",
+      "types": "./dist/mcp/server.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "playwright": "^1.49.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2",
+    "tsx": "^4.19.2",
+    "eslint": "^9.16.0",
+    "@eslint/js": "^9.16.0",
+    "typescript-eslint": "^8.17.0",
+    "prettier": "^3.4.2",
+    "vitest": "^2.1.6"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "audit",
+    "accessibility",
+    "automation",
+    "playwright",
+    "mcp",
+    "llm"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/AgentRank.it.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/AgentRank.it/issues"
+  },
+  "homepage": "https://agentrank.it"
+}
