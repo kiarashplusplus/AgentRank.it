@@ -92,6 +92,53 @@ program
     }
   });
 
+program
+  .command('task')
+  .description('Run a custom Skyvern task (Vision-LLM)')
+  .argument('<url>', 'URL to navigate to')
+  .argument('<goal>', 'The task goal (e.g., "Click the Sign Up button")')
+  .option('-t, --timeout <seconds>', 'Timeout in seconds', '300')
+  .action(async (url: string, goal: string, options: Record<string, unknown>) => {
+    const spinner = ora('Initializing Skyvern task...').start();
+
+    try {
+      const { SkyvernEngine } = await import('../engines/skyvern.js');
+      const skyvern = new SkyvernEngine({
+        timeout: parseInt(options.timeout as string, 10) * 1000,
+      });
+
+      const available = await skyvern.isAvailable();
+      if (!available) {
+        spinner.fail('Skyvern not available');
+        console.error(chalk.red('Start Skyvern with: docker-compose -f docker-compose.skyvern.yml up -d'));
+        process.exit(1);
+      }
+
+      spinner.text = `Running task: ${chalk.cyan(goal)}`;
+
+      const result = await skyvern.customTask(url, goal);
+
+      spinner.stop();
+
+      if (result.success) {
+        console.log(chalk.green('\n✓ Task completed successfully'));
+        console.log(chalk.gray(`Task ID: ${result.taskId}`));
+        if (result.screenshotPath) {
+          console.log(chalk.gray(`Screenshot: ${result.screenshotPath}`));
+        }
+        console.log(chalk.gray(`Result: ${result.transcript}`));
+      } else {
+        console.log(chalk.red('\n✗ Task failed'));
+        console.log(chalk.red(`Error: ${result.error}`));
+      }
+    } catch (error) {
+      spinner.fail('Task failed');
+      console.error(chalk.red(error instanceof Error ? error.message : 'Unknown error'));
+      process.exit(1);
+    }
+  });
+
+
 /**
  * Pretty print scan results to the console
  */

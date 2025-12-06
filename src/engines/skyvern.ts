@@ -59,7 +59,7 @@ export class SkyvernEngine {
     this.config = {
       apiEndpoint: config.apiEndpoint ?? process.env.SKYVERN_API_ENDPOINT ?? 'http://localhost:8000/api/v1',
       apiKey: config.apiKey ?? process.env.SKYVERN_API_KEY ?? 'agentrank-local-key',
-      timeout: config.timeout ?? 120000,
+      timeout: config.timeout ?? 300000, // 5 minutes for visual analysis
     };
   }
 
@@ -207,6 +207,16 @@ export class SkyvernEngine {
     `;
 
     return this.visualResolve(url, goal);
+  }
+
+  /**
+   * Run a custom task with a specific goal
+   * 
+   * @param url - The URL to navigate to
+   * @param customGoal - The specific task to perform (e.g., "Click the Sign Up button")
+   */
+  async customTask(url: string, customGoal: string): Promise<SkyvernResult> {
+    return this.visualResolve(url, customGoal);
   }
 }
 
