@@ -27,6 +27,7 @@ import {
   hostilityAnalyzer,
 } from '../analyzers/index.js';
 import { BrowserUseEngine } from '../engines/browser-use.js';
+import { SkyvernEngine } from '../engines/skyvern.js';
 import { generateTranscript } from '../transcript/generator.js';
 
 /**
@@ -108,8 +109,41 @@ export async function scanUrl(options: ScanOptions): Promise<ScanResult> {
           'I encountered an issue with the page and escalated to visual analysis mode.',
       });
 
-      // TODO: Implement Skyvern fallback
-      // For now, return with escalation flag
+      // Use Skyvern for deep visual analysis
+      const skyvern = new SkyvernEngine();
+      const skyvernAvailable = await skyvern.isAvailable();
+
+      if (skyvernAvailable) {
+        narrativeSteps.push({
+          action: 'skyvern_scan',
+          result: 'success',
+          humanReadable: 'I started a visual analysis using Skyvern Vision-LLM.',
+        });
+
+        const skyvernResult = await skyvern.deepScan(opts.url);
+
+        if (skyvernResult.success && skyvernResult.screenshotPath) {
+          escalation.screenshotPath = skyvernResult.screenshotPath;
+          narrativeSteps.push({
+            action: 'skyvern_complete',
+            result: 'success',
+            humanReadable: skyvernResult.transcript ?? 'Visual analysis completed.',
+          });
+        } else {
+          narrativeSteps.push({
+            action: 'skyvern_failed',
+            result: 'failure',
+            rawLog: skyvernResult.error,
+            humanReadable: `Visual analysis failed: ${skyvernResult.error}`,
+          });
+        }
+      } else {
+        narrativeSteps.push({
+          action: 'skyvern_unavailable',
+          result: 'skipped',
+          humanReadable: 'Skyvern service not available. Start with: docker-compose -f docker-compose.skyvern.yml up -d',
+        });
+      }
     }
 
     // Return error result

@@ -80,11 +80,14 @@ export async function POST(request: NextRequest) {
         // Path to the AgentRank CLI (relative to monorepo root)
         const cliPath = path.resolve(process.cwd(), "../../dist/cli/index.js");
 
-        // Run the audit command
+        // Deep mode requires more time for Skyvern analysis
+        const timeout = mode === "deep" ? 180000 : 60000;
+
+        // Run the audit command with mode
         const { stdout, stderr } = await execAsync(
-            `node "${cliPath}" audit "${url}" --json`,
+            `node "${cliPath}" audit "${url}" --mode ${mode} --json`,
             {
-                timeout: 60000, // 60 second timeout
+                timeout,
                 cwd: path.resolve(process.cwd(), "../.."),
             }
         );
