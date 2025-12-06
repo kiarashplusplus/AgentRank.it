@@ -42,11 +42,11 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as { error?: string };
         throw new Error(data.error || "Audit failed");
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as AuditResult;
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error occurred");
