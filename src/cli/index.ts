@@ -145,7 +145,7 @@ program
         const available = await engine.isAvailable();
         if (!available) {
           spinner.fail('Browser-Use Engine not available');
-          console.error(chalk.red('\n  Start the engine with: docker-compose -f docker-compose.skyvern.yml up -d'));
+          console.error(chalk.red('\n  Start the engine with: docker-compose up -d'));
           process.exit(1);
         }
 

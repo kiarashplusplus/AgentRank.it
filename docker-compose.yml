@@ -1,0 +1,15 @@
+# AgentRank Engine Setup
+# Self-hosted browser-use container for Level 2 Visual Resolver
+
+services:
+  engine:
+    build: ./src/python-engine
+    container_name: agentrank-engine
+    restart: always
+    ports:
+      - "8001:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ./engine-data:/app/data

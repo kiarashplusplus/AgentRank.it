@@ -1,15 +1,43 @@
-# AgentRank Engine Setup
-# Self-hosted browser-use container for Level 2 Visual Resolver
+# Legacy Skyvern Setup
+# Only needed if using --engine skyvern
+# Start with: docker-compose -f docker-compose.skyvern.yml up -d
 
 services:
-  engine:
-    build: ./src/python-engine
-    container_name: agentrank-engine
+  skyvern:
+    image: public.ecr.aws/skyvern/skyvern:latest
+    container_name: agentrank-skyvern
     restart: always
     ports:
-      - "8001:8000"
+      - "8000:8000"
+      - "8081:8080"
     environment:
+      - DATABASE_STRING=postgresql://skyvern:skyvern@postgres:5432/skyvern
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ENABLE_OPENAI=true
+      - BROWSER_TYPE=chromium-headful
+      - LLM_KEY=OPENAI_GPT4O
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
-      - ./engine-data:/app/data
+      - ./skyvern-data:/app/data
+      - ./skyvern-artifacts:/tmp/artifacts
+
+  postgres:
+    image: postgres:15
+    container_name: agentrank-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: skyvern
+      POSTGRES_PASSWORD: skyvern
+      POSTGRES_DB: skyvern
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U skyvern" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
