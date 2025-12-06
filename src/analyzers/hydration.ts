@@ -14,11 +14,12 @@ import type { Analyzer, AnalyzerContext, SignalResult } from '../types/index.js'
 
 /**
  * Thresholds for Time-to-Interactive (in ms)
+ * Updated to be more forgiving for modern SPAs
  */
 const TTI_THRESHOLDS = {
-  EXCELLENT: 1000, // < 1s
-  GOOD: 2500, // < 2.5s
-  ACCEPTABLE: 5000, // < 5s (PRD timeout)
+  EXCELLENT: 1500, // < 1.5s
+  GOOD: 4000, // < 4s (modern SPAs typically hydrate in 2-4s)
+  ACCEPTABLE: 6000, // < 6s (still usable)
 };
 
 export const hydrationAnalyzer: Analyzer = {

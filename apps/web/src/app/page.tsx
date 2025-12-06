@@ -30,6 +30,7 @@ interface ProgressState {
   step: number;
   total: number;
   task: string;
+  hint: string;
   outputs: string[];
 }
 
@@ -56,12 +57,13 @@ export default function Home() {
           const data = JSON.parse(event.data);
 
           if (data.type === "start") {
-            setProgress({ step: 0, total: data.total, task: data.message, outputs: [] });
+            setProgress({ step: 0, total: data.total, task: data.message, hint: "", outputs: [] });
           } else if (data.type === "progress") {
             setProgress(prev => ({
               step: data.step,
               total: data.total,
               task: data.task,
+              hint: data.hint || "",
               outputs: prev?.outputs || [],
             }));
           } else if (data.type === "task_complete") {
@@ -174,6 +176,11 @@ export default function Home() {
                       <p className="text-xs text-muted-foreground">
                         Step {progress.step} of {progress.total}
                       </p>
+                      {progress.hint && (
+                        <p className="text-xs text-muted-foreground/70 mt-1 italic">
+                          {progress.hint}
+                        </p>
+                      )}
                     </div>
                   </div>
 

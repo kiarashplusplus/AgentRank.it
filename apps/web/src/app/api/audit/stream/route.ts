@@ -10,6 +10,7 @@ const diagnosticTasks = [
         name: "Analyzing Structure",
         signal: "structure",
         icon: "🔍",
+        hint: "Finding headings, navigation, and semantic HTML elements",
         prompt: `Analyze this page's structure. Find the h1 heading, check for <nav> and <main> elements.
 Format: HEADING: [text], NAV: [YES/NO], MAIN: [YES/NO], SEMANTIC_COUNT: [number]`,
     },
@@ -17,6 +18,7 @@ Format: HEADING: [text], NAV: [YES/NO], MAIN: [YES/NO], SEMANTIC_COUNT: [number]
         name: "Testing Accessibility",
         signal: "accessibility",
         icon: "♿",
+        hint: "Checking button labels, image alt text, and link quality",
         prompt: `Check accessibility. Count buttons with labels, images with alt text.
 Format: BUTTONS: [total], [labeled]. IMAGES: [total], [with_alt]. LINKS: [good/poor]`,
     },
@@ -24,6 +26,7 @@ Format: BUTTONS: [total], [labeled]. IMAGES: [total], [with_alt]. LINKS: [good/p
         name: "Measuring Hydration",
         signal: "hydration",
         icon: "⏱️",
+        hint: "Testing page load speed and interactive element responsiveness",
         prompt: `Test interactivity. Note load speed, try clicking an element.
 Format: LOAD_TIME: [fast/medium/slow], INTERACTIVE: [YES/NO], RESPONSIVENESS: [immediate/delayed]`,
     },
@@ -31,6 +34,7 @@ Format: LOAD_TIME: [fast/medium/slow], INTERACTIVE: [YES/NO], RESPONSIVENESS: [i
         name: "Checking Hostility",
         signal: "hostility",
         icon: "🛡️",
+        hint: "Looking for CAPTCHAs, cookie banners, and popup blockers",
         prompt: `Check for bot-blocking. Look for CAPTCHAs, blocking banners, popups.
 Format: CAPTCHA: [YES/NO], COOKIE_BANNER: [YES/NO/BLOCKING], POPUPS: [YES/NO], CONTENT_ACCESSIBLE: [YES/NO]`,
     },
@@ -113,6 +117,7 @@ export async function GET(request: NextRequest) {
                         step: completedTasks + 1,
                         total: diagnosticTasks.length,
                         task: `${task.icon} ${task.name}...`,
+                        hint: task.hint,
                         signal: task.signal,
                     });
 
