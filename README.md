@@ -24,6 +24,29 @@ npm run build
 npm start audit https://example.com
 ```
 
+## 🐳 Deep Mode Setup (Optional)
+
+Deep mode uses [Skyvern](https://github.com/Skyvern-AI/skyvern) Vision-LLM for comprehensive visual audits.
+
+```bash
+# 1. Start Skyvern services
+docker-compose -f docker-compose.skyvern.yml up -d
+
+# 2. Get your API key from http://localhost:8081/settings
+
+# 3. Create .env file
+cp .env.example .env
+# Add your SKYVERN_API_KEY to .env
+
+# 4. Run deep audit
+npm run build
+npx agentrank audit https://example.com --mode=deep
+```
+
+> **Note:** Deep scans take 30-120 seconds and require Docker + an OpenAI API key for the Vision-LLM.
+> See [DEPLOYMENT.md](DEPLOYMENT.md) for full deployment documentation.
+
+
 ## 📊 Agent Visibility Score
 
 The score is composed of 5 weighted signals:

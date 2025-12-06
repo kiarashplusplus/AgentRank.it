@@ -89,6 +89,50 @@ export async function scanUrl(options: ScanOptions): Promise<ScanResult> {
     // Close browser
     await engine.close();
 
+    // Deep mode: Proactively use Skyvern for visual analysis
+    if (opts.mode === 'deep') {
+      const skyvern = new SkyvernEngine();
+      const skyvernAvailable = await skyvern.isAvailable();
+
+      if (skyvernAvailable) {
+        narrativeSteps.push({
+          action: 'skyvern_deep_scan',
+          result: 'success',
+          humanReadable: 'Starting visual analysis with Skyvern Vision-LLM for comprehensive audit...',
+        });
+
+        const skyvernResult = await skyvern.deepScan(opts.url);
+
+        if (skyvernResult.success) {
+          escalation = {
+            triggered: true,
+            reason: 'Deep mode visual analysis',
+            engine: 'skyvern',
+            screenshotPath: skyvernResult.screenshotPath,
+          };
+
+          narrativeSteps.push({
+            action: 'skyvern_complete',
+            result: 'success',
+            humanReadable: skyvernResult.transcript ?? 'Visual analysis completed successfully.',
+          });
+        } else {
+          narrativeSteps.push({
+            action: 'skyvern_failed',
+            result: 'failure',
+            rawLog: skyvernResult.error,
+            humanReadable: `Visual analysis encountered an issue: ${skyvernResult.error}. Proceeding with DOM-only results.`,
+          });
+        }
+      } else {
+        narrativeSteps.push({
+          action: 'skyvern_unavailable',
+          result: 'skipped',
+          humanReadable: 'Skyvern not available. Start with: docker-compose -f docker-compose.skyvern.yml up -d',
+        });
+      }
+    }
+
     return buildResult(opts, startTime, escalation, narrativeSteps, signals);
   } catch (error) {
     // Handle escalation triggers

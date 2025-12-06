@@ -173,10 +173,13 @@ export class SkyvernEngine {
    */
   async isAvailable(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.config.apiEndpoint.replace('/api/v1', '')}/health`, {
+      // Skyvern doesn't have a /health endpoint, so we check if the API responds
+      const response = await fetch(`${this.config.apiEndpoint}/tasks`, {
+        method: 'HEAD',
         signal: AbortSignal.timeout(5000),
       });
-      return response.ok;
+      // 405 Method Not Allowed is also valid - means the API is running
+      return response.ok || response.status === 405;
     } catch {
       return false;
     }

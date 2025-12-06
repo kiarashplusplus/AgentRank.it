@@ -41,3 +41,11 @@ temp/
 # Package manager locks (keep one)
 # yarn.lock
 # pnpm-lock.yaml
+
+# Skyvern (Docker)
+skyvern-artifacts/
+skyvern-videos/
+skyvern-har/
+skyvern-log/
+.streamlit/
+postgres-data/

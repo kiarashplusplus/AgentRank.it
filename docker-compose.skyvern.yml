@@ -1,57 +1,83 @@
 # Skyvern Setup for Deep Mode
 # Self-hosted Skyvern container for Vision-LLM based audits
+# Based on official Skyvern docker-compose
 
 services:
-  skyvern:
-    image: skyvern/skyvern:latest
-    container_name: agentrank-skyvern
-    ports:
-      - "8000:8000"
-      - "8080:8080"  # UI
-    environment:
-      # LLM Configuration (choose one)
-      - LLM_KEY=${OPENAI_API_KEY}
-      - LLM_PROVIDER=openai
-      - LLM_MODEL=gpt-4o
-      
-      # Alternative: Use Anthropic Claude
-      # - LLM_KEY=${ANTHROPIC_API_KEY}
-      # - LLM_PROVIDER=anthropic
-      # - LLM_MODEL=claude-sonnet-4-20250514
-      
-      # Skyvern settings
-      - SKYVERN_API_KEY=${SKYVERN_API_KEY:-agentrank-local-key}
-      - MAX_CONCURRENT_TASKS=3
-      - TASK_TIMEOUT=120
-      
-      # Browser settings
-      - BROWSER_HEADLESS=true
-      - BROWSER_VIEWPORT_WIDTH=1280
-      - BROWSER_VIEWPORT_HEIGHT=720
-      
-    volumes:
-      - skyvern-data:/data
-      - skyvern-screenshots:/app/screenshots
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # PostgreSQL for Skyvern task persistence
   postgres:
-    image: postgres:15-alpine
+    image: postgres:14-alpine
     container_name: agentrank-postgres
-    environment:
-      - POSTGRES_USER=skyvern
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-skyvern-local}
-      - POSTGRES_DB=skyvern
+    restart: always
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    restart: unless-stopped
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_USER=skyvern
+      - POSTGRES_PASSWORD=skyvern
+      - POSTGRES_DB=skyvern
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U skyvern" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  skyvern:
+    image: public.ecr.aws/skyvern/skyvern:latest
+    container_name: agentrank-skyvern
+    restart: on-failure
+    ports:
+      - "8000:8000"
+      - "9222:9222" # CDP browser forwarding
+    volumes:
+      - ./skyvern-artifacts:/data/artifacts
+      - ./skyvern-videos:/data/videos
+      - ./skyvern-har:/data/har
+      - ./skyvern-log:/data/log
+      - ./.streamlit:/app/.streamlit
+    environment:
+      # Database connection
+      - DATABASE_STRING=postgresql+psycopg://skyvern:skyvern@postgres:5432/skyvern
+
+      # Browser settings
+      - BROWSER_TYPE=chromium-headful
+      - ENABLE_CODE_BLOCK=true
+
+      # LLM Configuration - OpenAI (default)
+      - ENABLE_OPENAI=true
+      - LLM_KEY=OPENAI_GPT4O
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # Alternative: Anthropic Claude (uncomment below, comment OpenAI above)
+      # - ENABLE_ANTHROPIC=true
+      # - LLM_KEY=ANTHROPIC_CLAUDE3.5_SONNET
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "test", "-f", "/app/.streamlit/secrets.toml" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  skyvern-ui:
+    image: public.ecr.aws/skyvern/skyvern-ui:latest
+    container_name: agentrank-skyvern-ui
+    restart: on-failure
+    ports:
+      - "8081:8080"
+      - "9095:9090"
+    volumes:
+      - ./skyvern-artifacts:/data/artifacts
+      - ./skyvern-videos:/data/videos
+      - ./skyvern-har:/data/har
+      - ./.streamlit:/app/.streamlit
+    environment:
+      - VITE_WSS_BASE_URL=ws://localhost:8000/api/v1
+      - VITE_ARTIFACT_API_BASE_URL=http://localhost:9095
+      - VITE_API_BASE_URL=http://localhost:8000/api/v1
+    depends_on:
+      skyvern:
+        condition: service_healthy
 
 volumes:
-  skyvern-data:
-  skyvern-screenshots:
   postgres-data:
