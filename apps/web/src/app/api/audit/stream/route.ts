@@ -109,6 +109,7 @@ export async function GET(request: NextRequest) {
 
                 const results: Record<string, { score: number; status: string; details: string }> = {};
                 let completedTasks = 0;
+                let lastVideoUrl: string | undefined;
 
                 // Run each diagnostic task
                 for (const task of diagnosticTasks) {
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest) {
                         });
 
                         if (response.ok) {
-                            const data = await response.json() as { success: boolean; output?: string; error?: string };
+                            const data = await response.json() as { success: boolean; output?: string; error?: string; videoUrl?: string };
 
                             if (data.success && data.output) {
                                 // Simple scoring based on output
@@ -140,6 +141,11 @@ export async function GET(request: NextRequest) {
                                     status: score >= 80 ? "pass" : score >= 50 ? "warn" : "fail",
                                     details: data.output.slice(0, 200),
                                 };
+
+                                // Capture video URL if present
+                                if (data.videoUrl) {
+                                    lastVideoUrl = data.videoUrl;
+                                }
 
                                 send({
                                     type: "task_complete",
@@ -191,6 +197,7 @@ export async function GET(request: NextRequest) {
                     agentScore,
                     signals: results,
                     escalated: true,
+                    videoUrl: lastVideoUrl,
                 });
 
                 controller.close();

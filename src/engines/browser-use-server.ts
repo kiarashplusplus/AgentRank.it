@@ -15,6 +15,8 @@ export interface BrowserUseServerResult {
     output?: string;
     steps?: number;
     transcript?: string[];
+    videoUrl?: string;
+    scanId?: string;
     error?: string;
     rawResponse?: unknown;
 }
@@ -73,6 +75,8 @@ export class BrowserUseServerEngine {
                     output: data.output,
                     steps: data.steps,
                     transcript: data.transcript,
+                    videoUrl: data.videoUrl,
+                    scanId: data.scanId,
                     rawResponse: this.config.debug ? data : undefined,
                 };
             } else {

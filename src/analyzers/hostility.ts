@@ -16,31 +16,6 @@
 import type { Analyzer, AnalyzerContext, SignalResult } from '../types/index.js';
 
 /**
- * Known bot-blocking identifiers
- */
-const BOT_BLOCKERS = [
-  // Cloudflare
-  { id: '#cf-turnstile', name: 'Cloudflare Turnstile' },
-  { id: '.cf-turnstile', name: 'Cloudflare Turnstile' },
-  { id: '#challenge-running', name: 'Cloudflare Challenge' },
-  { id: '#cf-wrapper', name: 'Cloudflare Wrapper' },
-
-  // Google reCAPTCHA
-  { id: '.g-recaptcha', name: 'Google reCAPTCHA' },
-  { id: '#recaptcha', name: 'Google reCAPTCHA' },
-  { id: 'grecaptcha', name: 'Google reCAPTCHA' },
-
-  // hCaptcha
-  { id: '.h-captcha', name: 'hCaptcha' },
-  { id: '#hcaptcha', name: 'hCaptcha' },
-
-  // Generic bot detection
-  { id: 'data-bot-protection', name: 'Bot Protection' },
-  { id: 'anti-bot', name: 'Anti-Bot System' },
-  { id: 'bot-detection', name: 'Bot Detection' },
-];
-
-/**
  * Navigation trap patterns (clicks that change nothing)
  */
 const NAV_TRAP_PATTERNS = [
@@ -142,15 +117,36 @@ export const hostilityAnalyzer: Analyzer = {
 
 /**
  * Detect known bot-blocking mechanisms
+ * 
+ * Uses DOM-aware patterns to avoid false positives from JavaScript bundles
+ * that merely reference these identifiers.
  */
 function detectBotBlockers(html: string): string[] {
   const detected: string[] = [];
 
-  for (const blocker of BOT_BLOCKERS) {
-    if (html.includes(blocker.id)) {
-      if (!detected.includes(blocker.name)) {
-        detected.push(blocker.name);
-      }
+  // DOM-aware patterns: only match actual elements with these classes/IDs
+  const DOM_PATTERNS = [
+    // Cloudflare Turnstile - look for actual elements
+    { pattern: /<[^>]+(?:id|class)\s*=\s*["'][^"']*cf-turnstile[^"']*["']/i, name: 'Cloudflare Turnstile' },
+    { pattern: /<[^>]+(?:id|class)\s*=\s*["'][^"']*challenge-running[^"']*["']/i, name: 'Cloudflare Challenge' },
+    { pattern: /<[^>]+id\s*=\s*["']cf-wrapper["']/i, name: 'Cloudflare Wrapper' },
+
+    // Google reCAPTCHA - look for actual elements
+    { pattern: /<[^>]+class\s*=\s*["'][^"']*g-recaptcha[^"']*["']/i, name: 'Google reCAPTCHA' },
+    { pattern: /<[^>]+id\s*=\s*["']recaptcha["']/i, name: 'Google reCAPTCHA' },
+    { pattern: /<script[^>]+src\s*=\s*["'][^"']*recaptcha\/api\.js[^"']*["']/i, name: 'Google reCAPTCHA' },
+
+    // hCaptcha - look for actual elements
+    { pattern: /<[^>]+class\s*=\s*["'][^"']*h-captcha[^"']*["']/i, name: 'hCaptcha' },
+    { pattern: /<script[^>]+src\s*=\s*["'][^"']*hcaptcha\.com[^"']*["']/i, name: 'hCaptcha' },
+
+    // Bot protection data attributes
+    { pattern: /<[^>]+data-bot-protection\s*=/i, name: 'Bot Protection' },
+  ];
+
+  for (const { pattern, name } of DOM_PATTERNS) {
+    if (pattern.test(html) && !detected.includes(name)) {
+      detected.push(name);
     }
   }
 

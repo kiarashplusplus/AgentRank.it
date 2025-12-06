@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { ScoreGauge } from "@/components/score-gauge";
 import { SignalCards } from "@/components/signal-cards";
+import { QuickWinsPanel } from "@/components/quick-wins-panel";
+import { ReplayPlayer } from "@/components/replay-player";
 import { UrlInput } from "@/components/url-input";
 import { Header } from "@/components/header";
 
@@ -25,6 +27,7 @@ interface AuditResult {
   creditsRemaining: number | null;
   tier: string;
   userId: string | null;
+  videoUrl?: string;
 }
 
 interface ProgressState {
@@ -95,6 +98,7 @@ export default function Home() {
               creditsRemaining: null,
               tier: "free",
               userId: null,
+              videoUrl: data.videoUrl,
             });
             setIsLoading(false);
             setProgress(null);
@@ -294,6 +298,19 @@ export default function Home() {
                 <h2 className="text-lg font-semibold mb-4">Signal Breakdown</h2>
                 <SignalCards signals={result.signals} />
               </div>
+
+              {/* Improvement Ideas */}
+              <div className="mt-8">
+                <QuickWinsPanel signals={result.signals} />
+              </div>
+
+              {/* Agent Replay Video */}
+              {result.videoUrl && (
+                <div className="mt-8">
+                  <h2 className="text-lg font-semibold mb-4">Agent Replay</h2>
+                  <ReplayPlayer videoUrl={result.videoUrl} />
+                </div>
+              )}
             </>
           )}
 
