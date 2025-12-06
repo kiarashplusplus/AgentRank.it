@@ -81,14 +81,22 @@ export class BrowserUseEngine {
 
     /**
      * Get the accessibility tree snapshot
+     * 
+     * Note: Returns a simplified representation. Full accessibility tree
+     * analysis would require additional DOM type definitions.
      */
     private async getAccessibilityTree(): Promise<unknown> {
         if (!this.page) return null;
 
         try {
-            // Use Playwright's accessibility snapshot
-            const snapshot = await this.page.accessibility.snapshot();
-            return snapshot;
+            // Get basic accessibility info using Playwright's locators
+            const interactiveCount = await this.page.locator('button, a, input, select, textarea, [role]').count();
+            const ariaLabelCount = await this.page.locator('[aria-label]').count();
+
+            return {
+                interactiveElements: interactiveCount,
+                labeledElements: ariaLabelCount,
+            };
         } catch {
             return null;
         }

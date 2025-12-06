@@ -123,31 +123,19 @@ function analyzeLabels(html: string): { total: number; labeled: number; missing:
             const hasAriaLabel = /aria-label=/i.test(match);
             const hasAriaLabelledby = /aria-labelledby=/i.test(match);
             const hasTitle = /title=/i.test(match);
-            const hasAlt = /alt=/i.test(match);
             const hasPlaceholder = /placeholder=/i.test(match);
             const hasValue = /value=["'][^"']+["']/i.test(match);
-            const hasTextContent = element === 'button' && /<button[^>]*>[^<]+<\/button>/i.test(match);
 
             // For buttons, check inner text (simplified)
             if (element === 'button') {
                 // Check if it's not a self-closing style
-                const hasInnerContent = !/>[\s]*$/.test(match);
-                if (
-                    hasAriaLabel ||
-                    hasAriaLabelledby ||
-                    hasTitle ||
-                    hasInnerContent
-                ) {
+                const hasInnerContent = !/>\s*$/.test(match);
+                if (hasAriaLabel || hasAriaLabelledby || hasTitle || hasInnerContent) {
                     labeled++;
                 }
             } else if (element === 'a') {
-                // Links usually have text content
-                if (hasAriaLabel || hasAriaLabelledby || hasTitle) {
-                    labeled++;
-                } else {
-                    // Assume most links have text content
-                    labeled++;
-                }
+                // Links almost always have text content, count as labeled
+                labeled++;
             } else if (element === 'input') {
                 if (hasAriaLabel || hasAriaLabelledby || hasPlaceholder || hasValue || hasTitle) {
                     labeled++;

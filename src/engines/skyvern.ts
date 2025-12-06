@@ -54,7 +54,7 @@ export class SkyvernEngine {
      * @param url - The URL to analyze
      * @param action - The action to perform (e.g., "Find and click 'Sign Up' button")
      */
-    async visualResolve(url: string, action: string): Promise<SkyvernResult> {
+    async visualResolve(_url: string, _action: string): Promise<SkyvernResult> {
         // TODO: Implement actual Skyvern container orchestration
         //
         // Implementation steps:

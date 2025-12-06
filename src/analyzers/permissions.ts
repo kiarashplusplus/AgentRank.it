@@ -102,21 +102,16 @@ function parseRobotsTxt(content: string): string[] {
     const lines = content.split('\n');
     const blocked: string[] = [];
     let currentUserAgent = '';
-    let isDisallowAll = false;
 
     for (const line of lines) {
         const trimmed = line.trim().toLowerCase();
 
         if (trimmed.startsWith('user-agent:')) {
             currentUserAgent = trimmed.replace('user-agent:', '').trim();
-            isDisallowAll = false;
         } else if (trimmed.startsWith('disallow:')) {
             const path = trimmed.replace('disallow:', '').trim();
-            if (path === '/' || path === '/*') {
-                isDisallowAll = true;
-                if (currentUserAgent) {
-                    blocked.push(currentUserAgent);
-                }
+            if ((path === '/' || path === '/*') && currentUserAgent) {
+                blocked.push(currentUserAgent);
             }
         }
     }
