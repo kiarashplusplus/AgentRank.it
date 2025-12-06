@@ -12,6 +12,24 @@
 export { scanUrl } from './core/scanner.js';
 export { calculateScore, getGrade, getScoreSummary } from './core/score.js';
 
+// Diagnostic prompts (for deep scan)
+export {
+  diagnosticTasks,
+  structureTask,
+  accessibilityTask,
+  hydrationTask,
+  hostilityTask,
+} from './core/diagnostic-prompts.js';
+
+export type {
+  DiagnosticTask,
+  DiagnosticResult,
+} from './core/diagnostic-prompts.js';
+
+// Ideas generator
+export { generateIdeas, getQuickWins } from './core/ideas.js';
+export type { Idea } from './core/ideas.js';
+
 // Type exports
 export type {
   ScanResult,
@@ -38,6 +56,7 @@ export {
 
 // Engine exports
 export { BrowserUseEngine } from './engines/browser-use.js';
+export { BrowserUseServerEngine } from './engines/browser-use-server.js';
 export { SkyvernEngine, shouldEscalateToSkyvern } from './engines/skyvern.js';
 
 // Transcript exports

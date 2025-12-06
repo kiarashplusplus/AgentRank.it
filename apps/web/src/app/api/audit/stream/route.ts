@@ -1,44 +1,9 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { diagnosticTasks } from "@/lib/agentrank";
 
 // Browser-use engine endpoint
 const ENGINE_URL = process.env.ENGINE_URL || "http://localhost:8001";
-
-// Diagnostic prompts (simplified versions for web)
-const diagnosticTasks = [
-    {
-        name: "Analyzing Structure",
-        signal: "structure",
-        icon: "🔍",
-        hint: "Finding headings, navigation, and semantic HTML elements",
-        prompt: `Analyze this page's structure. Find the h1 heading, check for <nav> and <main> elements.
-Format: HEADING: [text], NAV: [YES/NO], MAIN: [YES/NO], SEMANTIC_COUNT: [number]`,
-    },
-    {
-        name: "Testing Accessibility",
-        signal: "accessibility",
-        icon: "♿",
-        hint: "Checking button labels, image alt text, and link quality",
-        prompt: `Check accessibility. Count buttons with labels, images with alt text.
-Format: BUTTONS: [total], [labeled]. IMAGES: [total], [with_alt]. LINKS: [good/poor]`,
-    },
-    {
-        name: "Measuring Hydration",
-        signal: "hydration",
-        icon: "⏱️",
-        hint: "Testing page load speed and interactive element responsiveness",
-        prompt: `Test interactivity. Note load speed, try clicking an element.
-Format: LOAD_TIME: [fast/medium/slow], INTERACTIVE: [YES/NO], RESPONSIVENESS: [immediate/delayed]`,
-    },
-    {
-        name: "Checking Hostility",
-        signal: "hostility",
-        icon: "🛡️",
-        hint: "Looking for CAPTCHAs, cookie banners, and popup blockers",
-        prompt: `Check for bot-blocking. Look for CAPTCHAs, blocking banners, popups.
-Format: CAPTCHA: [YES/NO], COOKIE_BANNER: [YES/NO/BLOCKING], POPUPS: [YES/NO], CONTENT_ACCESSIBLE: [YES/NO]`,
-    },
-];
 
 // Rate limiting
 const anonymousLimits = new Map<string, { count: number; resetAt: number }>();
