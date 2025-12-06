@@ -39,7 +39,7 @@ export interface Signals {
 export interface EscalationInfo {
   triggered: boolean;
   reason?: string;
-  engine?: 'skyvern';
+  engine?: 'skyvern' | 'browser-use';
   screenshotPath?: string;
 }
 

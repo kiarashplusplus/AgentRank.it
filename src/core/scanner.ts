@@ -27,7 +27,7 @@ import {
   hostilityAnalyzer,
 } from '../analyzers/index.js';
 import { BrowserUseEngine } from '../engines/browser-use.js';
-import { SkyvernEngine } from '../engines/skyvern.js';
+import { BrowserUseServerEngine } from '../engines/browser-use-server.js';
 import { generateTranscript } from '../transcript/generator.js';
 
 /**
@@ -89,46 +89,80 @@ export async function scanUrl(options: ScanOptions): Promise<ScanResult> {
     // Close browser
     await engine.close();
 
-    // Deep mode: Proactively use Skyvern for visual analysis
+    // Deep mode: Run diagnostic tasks using browser-use
     if (opts.mode === 'deep') {
-      const skyvern = new SkyvernEngine();
-      const skyvernAvailable = await skyvern.isAvailable();
+      const { diagnosticTasks } = await import('./diagnostic-prompts.js');
+      const visualEngine = new BrowserUseServerEngine();
+      const engineAvailable = await visualEngine.isAvailable();
 
-      if (skyvernAvailable) {
+      if (engineAvailable) {
         narrativeSteps.push({
-          action: 'skyvern_deep_scan',
+          action: 'deep_scan_start',
           result: 'success',
-          humanReadable: 'Starting visual analysis with Skyvern Vision-LLM for comprehensive audit...',
+          humanReadable: 'Starting deep diagnostic analysis with browser-use Vision-LLM...',
         });
 
-        const skyvernResult = await skyvern.deepScan(opts.url);
-
-        if (skyvernResult.success) {
-          escalation = {
-            triggered: true,
-            reason: 'Deep mode visual analysis',
-            engine: 'skyvern',
-            screenshotPath: skyvernResult.screenshotPath,
-          };
-
+        // Run each diagnostic task sequentially
+        for (const task of diagnosticTasks) {
           narrativeSteps.push({
-            action: 'skyvern_complete',
+            action: `diagnostic_${task.signal}_start`,
             result: 'success',
-            humanReadable: skyvernResult.transcript ?? 'Visual analysis completed successfully.',
+            humanReadable: `${task.icon} ${task.name}...`,
           });
-        } else {
-          narrativeSteps.push({
-            action: 'skyvern_failed',
-            result: 'failure',
-            rawLog: skyvernResult.error,
-            humanReadable: `Visual analysis encountered an issue: ${skyvernResult.error}. Proceeding with DOM-only results.`,
-          });
+
+          try {
+            const result = await visualEngine.runTask(opts.url, task.prompt);
+
+            if (result.success && result.output) {
+              const diagnosticResult = task.parseResult(result.output);
+
+              // Update the signal with diagnostic results
+              signals[task.signal] = {
+                ...signals[task.signal],
+                score: diagnosticResult.score,
+                status: diagnosticResult.status,
+                details: diagnosticResult.details,
+              };
+
+              narrativeSteps.push({
+                action: `diagnostic_${task.signal}_complete`,
+                result: 'success',
+                humanReadable: `${task.icon} ${diagnosticResult.findings.join('. ')}`,
+              });
+            } else {
+              narrativeSteps.push({
+                action: `diagnostic_${task.signal}_failed`,
+                result: 'failure',
+                rawLog: result.error,
+                humanReadable: `${task.icon} Unable to complete ${task.name.toLowerCase()}: ${result.error}`,
+              });
+            }
+          } catch (taskError) {
+            narrativeSteps.push({
+              action: `diagnostic_${task.signal}_error`,
+              result: 'failure',
+              rawLog: taskError instanceof Error ? taskError.message : 'Unknown error',
+              humanReadable: `${task.icon} Error during ${task.name.toLowerCase()}`,
+            });
+          }
         }
+
+        escalation = {
+          triggered: true,
+          reason: 'Deep mode diagnostic analysis',
+          engine: 'browser-use',
+        };
+
+        narrativeSteps.push({
+          action: 'deep_scan_complete',
+          result: 'success',
+          humanReadable: 'Deep diagnostic analysis complete. Scores updated based on visual inspection.',
+        });
       } else {
         narrativeSteps.push({
-          action: 'skyvern_unavailable',
+          action: 'engine_unavailable',
           result: 'skipped',
-          humanReadable: 'Skyvern not available. Start with: docker-compose -f docker-compose.skyvern.yml up -d',
+          humanReadable: 'Browser-use engine not available. Start with: docker-compose up -d',
         });
       }
     }
@@ -153,39 +187,38 @@ export async function scanUrl(options: ScanOptions): Promise<ScanResult> {
           'I encountered an issue with the page and escalated to visual analysis mode.',
       });
 
-      // Use Skyvern for deep visual analysis
-      const skyvern = new SkyvernEngine();
-      const skyvernAvailable = await skyvern.isAvailable();
+      // Use browser-use server for visual analysis fallback
+      const visualEngine = new BrowserUseServerEngine();
+      const engineAvailable = await visualEngine.isAvailable();
 
-      if (skyvernAvailable) {
+      if (engineAvailable) {
         narrativeSteps.push({
-          action: 'skyvern_scan',
+          action: 'visual_scan',
           result: 'success',
-          humanReadable: 'I started a visual analysis using Skyvern Vision-LLM.',
+          humanReadable: 'I started a visual analysis using browser-use Vision-LLM.',
         });
 
-        const skyvernResult = await skyvern.deepScan(opts.url);
+        const visualResult = await visualEngine.runTask(opts.url, 'Analyze this page and report what you see.');
 
-        if (skyvernResult.success && skyvernResult.screenshotPath) {
-          escalation.screenshotPath = skyvernResult.screenshotPath;
+        if (visualResult.success) {
           narrativeSteps.push({
-            action: 'skyvern_complete',
+            action: 'visual_complete',
             result: 'success',
-            humanReadable: skyvernResult.transcript ?? 'Visual analysis completed.',
+            humanReadable: visualResult.output ?? 'Visual analysis completed.',
           });
         } else {
           narrativeSteps.push({
-            action: 'skyvern_failed',
+            action: 'visual_failed',
             result: 'failure',
-            rawLog: skyvernResult.error,
-            humanReadable: `Visual analysis failed: ${skyvernResult.error}`,
+            rawLog: visualResult.error,
+            humanReadable: `Visual analysis failed: ${visualResult.error}`,
           });
         }
       } else {
         narrativeSteps.push({
-          action: 'skyvern_unavailable',
+          action: 'engine_unavailable',
           result: 'skipped',
-          humanReadable: 'Skyvern service not available. Start with: docker-compose -f docker-compose.skyvern.yml up -d',
+          humanReadable: 'Browser-use engine not available. Start with: docker-compose up -d',
         });
       }
     }

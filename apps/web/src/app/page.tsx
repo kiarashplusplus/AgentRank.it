@@ -26,18 +26,94 @@ interface AuditResult {
   userId: string | null;
 }
 
+interface ProgressState {
+  step: number;
+  total: number;
+  task: string;
+  outputs: string[];
+}
+
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<ProgressState | null>(null);
+  const [scanMode, setScanMode] = useState<"quick" | "deep">("quick");
 
   const handleAudit = async (url: string, mode: "quick" | "deep" = "quick") => {
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setProgress(null);
+    setScanMode(mode);
 
     try {
-      // Call the AgentRank CLI via API route
+      if (mode === "deep") {
+        // Use streaming endpoint for deep scan
+        const eventSource = new EventSource(`/api/audit/stream?url=${encodeURIComponent(url)}`);
+
+        eventSource.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+
+          if (data.type === "start") {
+            setProgress({ step: 0, total: data.total, task: data.message, outputs: [] });
+          } else if (data.type === "progress") {
+            setProgress(prev => ({
+              step: data.step,
+              total: data.total,
+              task: data.task,
+              outputs: prev?.outputs || [],
+            }));
+          } else if (data.type === "task_complete") {
+            setProgress(prev => ({
+              ...prev!,
+              outputs: [...(prev?.outputs || []), `${data.output?.slice(0, 150) || "Completed"}`],
+            }));
+          } else if (data.type === "task_failed") {
+            setProgress(prev => ({
+              ...prev!,
+              outputs: [...(prev?.outputs || []), `⚠️ ${data.error || "Task failed"}`],
+            }));
+          } else if (data.type === "complete") {
+            eventSource.close();
+            setResult({
+              url,
+              agentScore: data.agentScore,
+              mode: "deep",
+              costUsd: 0.02,
+              escalated: data.escalated,
+              signals: Object.entries(data.signals).map(([name, sig]) => ({
+                name,
+                status: (sig as { status: string }).status as "pass" | "warn" | "fail",
+                score: (sig as { score: number }).score,
+                weight: name === "permissions" ? 20 : name === "structure" || name === "accessibility" ? 25 : 15,
+                details: (sig as { details: string }).details,
+              })),
+              creditsRemaining: null,
+              tier: "free",
+              userId: null,
+            });
+            setIsLoading(false);
+            setProgress(null);
+          } else if (data.type === "error") {
+            eventSource.close();
+            setError(data.message);
+            setIsLoading(false);
+            setProgress(null);
+          }
+        };
+
+        eventSource.onerror = () => {
+          eventSource.close();
+          setError("Connection lost to scan server");
+          setIsLoading(false);
+          setProgress(null);
+        };
+
+        return; // Don't continue to finally block
+      }
+
+      // Quick mode - use regular API
       const response = await fetch("/api/audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,9 +127,9 @@ export default function Home() {
 
       const data = (await response.json()) as AuditResult;
       setResult(data);
+      setIsLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error occurred");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -87,9 +163,49 @@ export default function Home() {
 
           {/* Loading State */}
           {isLoading && (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-              <p className="mt-4 text-muted-foreground">Scanning site...</p>
+            <div className="mb-8 rounded-lg border bg-card p-6 max-w-2xl">
+              {progress && scanMode === "deep" ? (
+                <>
+                  {/* Progress Header */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-8 w-8 animate-spin rounded-full border-3 border-primary border-t-transparent" />
+                    <div>
+                      <p className="font-medium">{progress.task}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Step {progress.step} of {progress.total}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="mb-4">
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all duration-500"
+                        style={{ width: `${(progress.step / progress.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Think-Aloud Outputs */}
+                  {progress.outputs.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {progress.outputs.map((output, idx) => (
+                        <div key={idx} className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
+                          {output}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  <p className="mt-4 text-muted-foreground">
+                    {scanMode === "deep" ? "Starting deep scan..." : "Scanning site..."}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

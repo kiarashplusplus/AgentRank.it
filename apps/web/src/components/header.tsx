@@ -13,6 +13,16 @@ export function Header() {
                     <span className="text-xl font-bold">AgentRank.it</span>
                 </Link>
 
+                {/* Navigation */}
+                <nav className="hidden md:flex items-center gap-6">
+                    <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                        Audit
+                    </Link>
+                    <Link href="/task" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                        Task
+                    </Link>
+                </nav>
+
                 {/* Auth Controls */}
                 <div className="flex items-center gap-4">
                     <SignedOut>
