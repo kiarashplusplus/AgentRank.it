@@ -79,6 +79,12 @@ export const hostilityAnalyzer: Analyzer = {
         score: 0,
         weight: this.weight,
         details: `Blocked by hostility: ${detectedBlockers.join(', ')}`,
+        recommendations: [
+          'Use honeypot spam protection instead of visible CAPTCHAs for agent-friendly access',
+          'Implement server-side bot detection that allows known AI agents',
+          'Add AI agent user-agents to your CAPTCHA bypass allowlist',
+          'Consider providing an API endpoint as an alternative to web scraping',
+        ],
       };
     }
 
@@ -91,6 +97,12 @@ export const hostilityAnalyzer: Analyzer = {
         score: 10,
         weight: this.weight,
         details: `High navigation trap density detected (${trapCount} traps)`,
+        recommendations: [
+          'Replace `href="#"` with actual navigation targets or `<button>` elements',
+          'Remove `javascript:void(0)` links - use buttons for actions',
+          'Ensure modal overlays can be dismissed programmatically',
+          'Add proper `href` attributes to all navigation links',
+        ],
       };
     }
 
@@ -100,6 +112,10 @@ export const hostilityAnalyzer: Analyzer = {
         score: 60,
         weight: this.weight,
         details: `Some navigation traps detected (${trapCount} traps)`,
+        recommendations: [
+          'Review links with `href="#"` and convert to semantic buttons or real links',
+          'Ensure disabled buttons have appropriate `aria-disabled` states',
+        ],
       };
     }
 
@@ -109,6 +125,9 @@ export const hostilityAnalyzer: Analyzer = {
         score: 80,
         weight: this.weight,
         details: `Minor navigation traps (${trapCount})`,
+        recommendations: [
+          'Consider removing remaining navigation traps for optimal agent experience',
+        ],
       };
     }
 

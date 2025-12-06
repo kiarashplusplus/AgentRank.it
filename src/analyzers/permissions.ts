@@ -63,6 +63,11 @@ export const permissionsAnalyzer: Analyzer = {
           score: 0,
           weight: this.weight,
           details: `Blocks all AI agents via robots.txt`,
+          recommendations: [
+            'Update robots.txt to allow AI agents: Add `User-agent: GPTBot\\nAllow: /`',
+            'Consider using ai.txt to define granular AI agent permissions',
+            'If blocking is intentional, consider allowing specific safe paths like /api/public/',
+          ],
         };
       }
 
@@ -71,6 +76,10 @@ export const permissionsAnalyzer: Analyzer = {
         score: 50,
         weight: this.weight,
         details: `Blocks some AI agents: ${blockedAiBots.join(', ')}`,
+        recommendations: [
+          `Unblock AI agents in robots.txt: Remove Disallow rules for ${blockedAiBots.join(', ')}`,
+          'Add explicit Allow rules: `User-agent: GPTBot\\nAllow: /`',
+        ],
       };
     }
 
@@ -81,6 +90,10 @@ export const permissionsAnalyzer: Analyzer = {
         score: 60,
         weight: this.weight,
         details: 'ai.txt indicates restricted AI agent access',
+        recommendations: [
+          'Update ai.txt to set `Allow: true` for AI agent access',
+          'Define specific allowed actions in ai.txt for better control',
+        ],
       };
     }
 

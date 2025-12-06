@@ -51,6 +51,11 @@ export const accessibilityAnalyzer: Analyzer = {
         score: 20,
         weight: this.weight,
         details: 'Accessibility tree too large - may exceed AI context window',
+        recommendations: [
+          'Reduce DOM complexity by removing hidden or decorative elements',
+          'Use `aria-hidden="true"` on non-essential visual elements',
+          'Consider lazy-loading content sections to reduce initial tree size',
+        ],
       };
     }
 
@@ -74,6 +79,12 @@ export const accessibilityAnalyzer: Analyzer = {
         score: 20,
         weight: this.weight,
         details: `Critical: ${missing} of ${total} interactive elements lack labels`,
+        recommendations: [
+          'Add `aria-label` to buttons: `<button aria-label="Submit form">...</button>`',
+          'Add `aria-label` to icon buttons: `<button aria-label="Close"><svg>...</svg></button>`',
+          'Associate inputs with labels: `<label for="email">Email</label><input id="email">`',
+          'Use `aria-labelledby` to reference visible text as labels',
+        ],
       };
     }
 
@@ -83,6 +94,11 @@ export const accessibilityAnalyzer: Analyzer = {
         score: 50,
         weight: this.weight,
         details: `${missing} of ${total} interactive elements missing accessible labels`,
+        recommendations: [
+          'Add `aria-label` to unlabeled buttons and inputs',
+          'Ensure all images have descriptive `alt` text',
+          'Use explicit `<label>` elements instead of placeholder text alone',
+        ],
       };
     }
 
@@ -92,6 +108,9 @@ export const accessibilityAnalyzer: Analyzer = {
         score: 80,
         weight: this.weight,
         details: `Good: ${labeled} of ${total} interactive elements have labels`,
+        recommendations: [
+          'Add labels to remaining unlabeled elements for perfect accessibility',
+        ],
       };
     }
 

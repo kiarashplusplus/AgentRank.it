@@ -12,6 +12,7 @@ interface Signal {
   score: number;
   weight: number;
   details: string;
+  recommendations?: string[];
 }
 
 interface AuditResult {

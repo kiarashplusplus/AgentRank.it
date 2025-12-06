@@ -20,6 +20,7 @@ export interface SignalResult {
   score: number; // 0-100
   details: string;
   weight: number;
+  recommendations?: string[]; // Actionable improvement suggestions
 }
 
 /**

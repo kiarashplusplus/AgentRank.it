@@ -107,13 +107,14 @@ export async function POST(request: NextRequest) {
             costUsd: result.meta?.costUsd || 0.002,
             escalated: result.escalation?.triggered || false,
             signals: Object.entries(result.signals || {}).map(([name, signal]: [string, unknown]) => {
-                const s = signal as { status: string; score: number; weight: number; details: string };
+                const s = signal as { status: string; score: number; weight: number; details: string; recommendations?: string[] };
                 return {
                     name,
                     status: s.status as "pass" | "warn" | "fail",
                     score: s.score || 0,
                     weight: s.weight || 0,
                     details: s.details || "",
+                    recommendations: s.recommendations || [],
                 };
             }),
             // Credit info

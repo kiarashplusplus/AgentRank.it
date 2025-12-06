@@ -100,6 +100,13 @@ export const structureAnalyzer: Analyzer = {
         score: 10,
         weight: this.weight,
         details: `Div Soup detected (${Math.round(nonSemanticRatio * 100)}% non-semantic tags)`,
+        recommendations: [
+          'Replace `<div class="nav">` with `<nav>` for navigation sections',
+          'Use `<main>` for primary content area instead of `<div id="content">`',
+          'Add `<header>` and `<footer>` elements for page landmarks',
+          'Use `<article>` for self-contained content and `<section>` for thematic groups',
+          'Add heading hierarchy (h1-h6) to define document structure',
+        ],
       };
     }
 
@@ -109,6 +116,11 @@ export const structureAnalyzer: Analyzer = {
         score: 50,
         weight: this.weight,
         details: `Low semantic density (${Math.round(semanticRatio * 100)}% semantic tags)`,
+        recommendations: [
+          'Add semantic landmarks: `<nav>`, `<main>`, `<aside>` help AI agents navigate',
+          'Ensure a single `<h1>` describes the page purpose',
+          'Wrap related content in `<section>` elements with headings',
+        ],
       };
     }
 
@@ -126,6 +138,9 @@ export const structureAnalyzer: Analyzer = {
       score: 80,
       weight: this.weight,
       details: `Acceptable semantic density (${Math.round(semanticRatio * 100)}% semantic tags)`,
+      recommendations: [
+        'Consider adding more semantic elements to improve agent readability',
+      ],
     };
   },
 };

@@ -39,6 +39,11 @@ export const hydrationAnalyzer: Analyzer = {
           score: 60,
           weight: this.weight,
           details: 'Heavy JavaScript SPA detected - TTI could not be measured',
+          recommendations: [
+            'Consider Server-Side Rendering (SSR) to provide initial HTML content',
+            'Use static site generation (SSG) for content-heavy pages',
+            'Implement progressive hydration to prioritize interactive elements',
+          ],
         };
       }
 
@@ -57,6 +62,12 @@ export const hydrationAnalyzer: Analyzer = {
         score: 0,
         weight: this.weight,
         details: `Agent timeout: TTI ${formatMs(timeToInteractive)} exceeds 5s threshold`,
+        recommendations: [
+          'Reduce JavaScript bundle size by code-splitting and tree-shaking',
+          'Defer non-critical JavaScript with `<script defer>` or dynamic imports',
+          'Move to Server-Side Rendering (SSR) for initial page content',
+          'Lazy-load below-the-fold content and heavy components',
+        ],
       };
     }
 
@@ -66,6 +77,11 @@ export const hydrationAnalyzer: Analyzer = {
         score: 50,
         weight: this.weight,
         details: `Slow hydration: TTI ${formatMs(timeToInteractive)}`,
+        recommendations: [
+          'Optimize JavaScript loading with code-splitting',
+          'Pre-render critical content on the server',
+          'Consider using a lighter framework or reducing hydration scope',
+        ],
       };
     }
 
