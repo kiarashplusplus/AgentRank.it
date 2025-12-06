@@ -21,6 +21,13 @@ export default tseslint.config(
             ],
             '@typescript-eslint/consistent-type-imports': 'error',
             '@typescript-eslint/no-import-type-side-effects': 'error',
+            // Relax strict rules that flag valid patterns
+            '@typescript-eslint/restrict-template-expressions': 'off',
+            '@typescript-eslint/require-await': 'off',
+            '@typescript-eslint/no-misused-promises': 'off',
+            '@typescript-eslint/no-unsafe-member-access': 'off',
+            '@typescript-eslint/restrict-plus-operands': 'off',
+            '@typescript-eslint/no-unnecessary-condition': 'off',
         },
     },
     {

@@ -15,21 +15,21 @@ import type { AnalyzerContext } from '../types/index.js';
  * Create a mock context with the given HTML
  */
 function createContext(html: string): AnalyzerContext {
-    return {
-        url: 'https://example.com',
-        html,
-        robotsTxt: undefined,
-        aiTxt: undefined,
-        accessibilityTree: null,
-        timeToInteractive: 1000,
-    };
+  return {
+    url: 'https://example.com',
+    html,
+    robotsTxt: undefined,
+    aiTxt: undefined,
+    accessibilityTree: null,
+    timeToInteractive: 1000,
+  };
 }
 
 describe('Hostility Analyzer', () => {
-    describe('Bot Blocker Detection - Cloudflare', () => {
-        it('should FAIL immediately for #cf-turnstile (no escalation to Vision)', async () => {
-            // The analyzer checks for literal string "#cf-turnstile" via includes()
-            const html = `
+  describe('Bot Blocker Detection - Cloudflare', () => {
+    it('should FAIL immediately for #cf-turnstile (no escalation to Vision)', async () => {
+      // The analyzer checks for literal string "#cf-turnstile" via includes()
+      const html = `
                 <html>
                     <body>
                         <div id="cf-turnstile" class="cf-turnstile"></div>
@@ -38,71 +38,71 @@ describe('Hostility Analyzer', () => {
                     </body>
                 </html>
             `;
-            const result = await hostilityAnalyzer.analyze(createContext(html));
+      const result = await hostilityAnalyzer.analyze(createContext(html));
 
-            expect(result.status).toBe('fail');
-            expect(result.score).toBe(0);
-            expect(result.details).toContain('Cloudflare Turnstile');
-        });
-
-        it('should FAIL for .cf-turnstile class reference', async () => {
-            const html = `<script src="turnstile.js">.cf-turnstile { display: block; }</script>`;
-            const result = await hostilityAnalyzer.analyze(createContext(html));
-
-            expect(result.status).toBe('fail');
-            expect(result.details).toContain('Cloudflare Turnstile');
-        });
-
-        it('should FAIL for #challenge-running (Cloudflare challenge)', async () => {
-            const html = `<div data-selector="#challenge-running"></div>`;
-            const result = await hostilityAnalyzer.analyze(createContext(html));
-
-            expect(result.status).toBe('fail');
-            expect(result.details).toContain('Cloudflare');
-        });
+      expect(result.status).toBe('fail');
+      expect(result.score).toBe(0);
+      expect(result.details).toContain('Cloudflare Turnstile');
     });
 
-    describe('Bot Blocker Detection - reCAPTCHA', () => {
-        it('should FAIL for .g-recaptcha', async () => {
-            // The analyzer checks for literal ".g-recaptcha" string
-            const html = `
+    it('should FAIL for .cf-turnstile class reference', async () => {
+      const html = `<script src="turnstile.js">.cf-turnstile { display: block; }</script>`;
+      const result = await hostilityAnalyzer.analyze(createContext(html));
+
+      expect(result.status).toBe('fail');
+      expect(result.details).toContain('Cloudflare Turnstile');
+    });
+
+    it('should FAIL for #challenge-running (Cloudflare challenge)', async () => {
+      const html = `<div data-selector="#challenge-running"></div>`;
+      const result = await hostilityAnalyzer.analyze(createContext(html));
+
+      expect(result.status).toBe('fail');
+      expect(result.details).toContain('Cloudflare');
+    });
+  });
+
+  describe('Bot Blocker Detection - reCAPTCHA', () => {
+    it('should FAIL for .g-recaptcha', async () => {
+      // The analyzer checks for literal ".g-recaptcha" string
+      const html = `
                 <script>grecaptcha.render('.g-recaptcha', { sitekey: 'abcd1234' });</script>
             `;
-            const result = await hostilityAnalyzer.analyze(createContext(html));
+      const result = await hostilityAnalyzer.analyze(createContext(html));
 
-            expect(result.status).toBe('fail');
-            expect(result.score).toBe(0);
-            expect(result.details).toContain('reCAPTCHA');
-        });
-
-        it('should FAIL for #recaptcha', async () => {
-            const html = `<script>document.querySelector('#recaptcha').render();</script>`;
-            const result = await hostilityAnalyzer.analyze(createContext(html));
-
-            expect(result.status).toBe('fail');
-        });
+      expect(result.status).toBe('fail');
+      expect(result.score).toBe(0);
+      expect(result.details).toContain('reCAPTCHA');
     });
 
-    describe('Bot Blocker Detection - hCaptcha', () => {
-        it('should FAIL for .h-captcha', async () => {
-            const html = `<style>.h-captcha { width: 100%; }</style>`;
-            const result = await hostilityAnalyzer.analyze(createContext(html));
+    it('should FAIL for #recaptcha', async () => {
+      const html = `<script>document.querySelector('#recaptcha').render();</script>`;
+      const result = await hostilityAnalyzer.analyze(createContext(html));
 
-            expect(result.status).toBe('fail');
-            expect(result.details).toContain('hCaptcha');
-        });
+      expect(result.status).toBe('fail');
+    });
+  });
 
-        it('should FAIL for #hcaptcha', async () => {
-            const html = `<link data-target="#hcaptcha" />`;
-            const result = await hostilityAnalyzer.analyze(createContext(html));
+  describe('Bot Blocker Detection - hCaptcha', () => {
+    it('should FAIL for .h-captcha', async () => {
+      const html = `<style>.h-captcha { width: 100%; }</style>`;
+      const result = await hostilityAnalyzer.analyze(createContext(html));
 
-            expect(result.status).toBe('fail');
-        });
+      expect(result.status).toBe('fail');
+      expect(result.details).toContain('hCaptcha');
     });
 
-    describe('Clean HTML - No Blockers', () => {
-        it('should PASS for clean HTML without bot blockers', async () => {
-            const html = `
+    it('should FAIL for #hcaptcha', async () => {
+      const html = `<link data-target="#hcaptcha" />`;
+      const result = await hostilityAnalyzer.analyze(createContext(html));
+
+      expect(result.status).toBe('fail');
+    });
+  });
+
+  describe('Clean HTML - No Blockers', () => {
+    it('should PASS for clean HTML without bot blockers', async () => {
+      const html = `
                 <!DOCTYPE html>
                 <html>
                 <head><title>Clean Site</title></head>
@@ -115,22 +115,22 @@ describe('Hostility Analyzer', () => {
                 </body>
                 </html>
             `;
-            const result = await hostilityAnalyzer.analyze(createContext(html));
+      const result = await hostilityAnalyzer.analyze(createContext(html));
 
-            expect(result.status).toBe('pass');
-            expect(result.score).toBe(100);
-            expect(result.details).toContain('No bot-blocking');
-        });
-
-        it('should have correct weight (15%)', async () => {
-            const result = await hostilityAnalyzer.analyze(createContext('<html></html>'));
-            expect(result.weight).toBe(15);
-        });
+      expect(result.status).toBe('pass');
+      expect(result.score).toBe(100);
+      expect(result.details).toContain('No bot-blocking');
     });
 
-    describe('Navigation Traps', () => {
-        it('should WARN for moderate navigation traps', async () => {
-            const html = `
+    it('should have correct weight (15%)', async () => {
+      const result = await hostilityAnalyzer.analyze(createContext('<html></html>'));
+      expect(result.weight).toBe(15);
+    });
+  });
+
+  describe('Navigation Traps', () => {
+    it('should WARN for moderate navigation traps', async () => {
+      const html = `
                 <a href="javascript:void(0)">Link 1</a>
                 <a href="javascript:void(0)">Link 2</a>
                 <a href="javascript:void(0)">Link 3</a>
@@ -138,37 +138,37 @@ describe('Hostility Analyzer', () => {
                 <a href="javascript:void(0)">Link 5</a>
                 <a href="javascript:void(0)">Link 6</a>
             `;
-            const result = await hostilityAnalyzer.analyze(createContext(html));
+      const result = await hostilityAnalyzer.analyze(createContext(html));
 
-            expect(result.status).toBe('warn');
-            expect(result.details).toContain('traps');
-        });
-
-        it('should FAIL for excessive navigation traps (>10)', async () => {
-            // Create HTML with many navigation traps
-            const traps = Array(15).fill('<a href="javascript:void(0)">Trap</a>').join('\n');
-            const result = await hostilityAnalyzer.analyze(createContext(traps));
-
-            expect(result.status).toBe('fail');
-            expect(result.details).toContain('trap');
-        });
+      expect(result.status).toBe('warn');
+      expect(result.details).toContain('traps');
     });
 
-    describe('Edge Cases', () => {
-        it('should PASS for empty HTML', async () => {
-            const result = await hostilityAnalyzer.analyze(createContext(''));
-            expect(result.status).toBe('pass');
-        });
+    it('should FAIL for excessive navigation traps (>10)', async () => {
+      // Create HTML with many navigation traps
+      const traps = Array(15).fill('<a href="javascript:void(0)">Trap</a>').join('\n');
+      const result = await hostilityAnalyzer.analyze(createContext(traps));
 
-        it('should PASS for HTML with similar but non-matching patterns', async () => {
-            const html = `
+      expect(result.status).toBe('fail');
+      expect(result.details).toContain('trap');
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should PASS for empty HTML', async () => {
+      const result = await hostilityAnalyzer.analyze(createContext(''));
+      expect(result.status).toBe('pass');
+    });
+
+    it('should PASS for HTML with similar but non-matching patterns', async () => {
+      const html = `
                 <div class="recaptcha-info">Information about recaptcha</div>
                 <p>We use Cloudflare for security</p>
             `;
-            const result = await hostilityAnalyzer.analyze(createContext(html));
+      const result = await hostilityAnalyzer.analyze(createContext(html));
 
-            // Should pass because class is "recaptcha-info" not "g-recaptcha"
-            expect(result.status).toBe('pass');
-        });
+      // Should pass because class is "recaptcha-info" not "g-recaptcha"
+      expect(result.status).toBe('pass');
     });
+  });
 });

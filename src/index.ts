@@ -14,26 +14,26 @@ export { calculateScore, getGrade, getScoreSummary } from './core/score.js';
 
 // Type exports
 export type {
-    ScanResult,
-    ScanOptions,
-    Signals,
-    SignalResult,
-    SignalStatus,
-    MCPResponse,
-    Narrative,
-    NarrativeStep,
-    EscalationInfo,
-    Analyzer,
-    AnalyzerContext,
+  ScanResult,
+  ScanOptions,
+  Signals,
+  SignalResult,
+  SignalStatus,
+  MCPResponse,
+  Narrative,
+  NarrativeStep,
+  EscalationInfo,
+  Analyzer,
+  AnalyzerContext,
 } from './types/index.js';
 
 // Analyzer exports
 export {
-    permissionsAnalyzer,
-    structureAnalyzer,
-    accessibilityAnalyzer,
-    hydrationAnalyzer,
-    hostilityAnalyzer,
+  permissionsAnalyzer,
+  structureAnalyzer,
+  accessibilityAnalyzer,
+  hydrationAnalyzer,
+  hostilityAnalyzer,
 } from './analyzers/index.js';
 
 // Engine exports
