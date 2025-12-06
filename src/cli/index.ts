@@ -12,6 +12,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import { scanUrl } from '../core/scanner.js';
+import { startMCPServer } from '../mcp/server.js';
 import type { ScanOptions, ScanResult } from '../types/index.js';
 
 const program = new Command();
@@ -66,11 +67,27 @@ program
     .command('mcp')
     .description('Start the MCP server for IDE integration')
     .option('-p, --port <port>', 'Port to listen on', '3000')
+    .option('-H, --host <host>', 'Host to bind to', 'localhost')
     .action(async (options: Record<string, unknown>) => {
-        console.log(chalk.cyan('Starting MCP server...'));
-        console.log(chalk.gray(`Port: ${options['port']}`));
-        // TODO: Implement MCP server startup
-        console.log(chalk.yellow('MCP server not yet implemented'));
+        const port = parseInt(options['port'] as string, 10);
+        const host = options['host'] as string;
+
+        try {
+            await startMCPServer({ port, host });
+
+            // Handle graceful shutdown
+            const shutdown = () => {
+                console.log(chalk.gray('\nShutting down MCP server...'));
+                process.exit(0);
+            };
+
+            process.on('SIGINT', shutdown);
+            process.on('SIGTERM', shutdown);
+        } catch (error) {
+            console.error(chalk.red('Failed to start MCP server:'));
+            console.error(chalk.red(error instanceof Error ? error.message : 'Unknown error'));
+            process.exit(1);
+        }
     });
 
 /**

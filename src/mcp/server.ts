@@ -10,6 +10,7 @@
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { handleMCPRequest, type MCPRequest } from './handlers.js';
+import { anonymousLimiter, createRateLimitError } from './rate-limiter.js';
 
 /**
  * Default MCP server port
@@ -53,6 +54,26 @@ export async function startMCPServer(config: MCPServerConfig = {}): Promise<void
 
         // MCP endpoint
         if (req.url === '/mcp' && req.method === 'POST') {
+            // Get client IP for rate limiting
+            const clientIp = getClientIp(req);
+
+            // Check rate limit before processing
+            const rateLimitResult = anonymousLimiter.check(clientIp);
+            if (!rateLimitResult.allowed) {
+                res.writeHead(429, {
+                    'Content-Type': 'application/json',
+                    'Retry-After': String(Math.ceil((rateLimitResult.retryAfterMs ?? 0) / 1000)),
+                    'X-RateLimit-Limit': '3',
+                    'X-RateLimit-Remaining': '0',
+                    'X-RateLimit-Reset': rateLimitResult.resetAt.toISOString(),
+                });
+                res.end(JSON.stringify({
+                    status: 'error',
+                    error: createRateLimitError(rateLimitResult),
+                }));
+                return;
+            }
+
             let body = '';
 
             req.on('data', (chunk: Buffer) => {
@@ -62,9 +83,22 @@ export async function startMCPServer(config: MCPServerConfig = {}): Promise<void
             req.on('end', async () => {
                 try {
                     const request = JSON.parse(body) as MCPRequest;
+
+                    // Only count audit requests against the limit
+                    if (request.action === 'audit') {
+                        anonymousLimiter.record(clientIp);
+                    }
+
                     const response = await handleMCPRequest(request);
 
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    // Add rate limit headers
+                    const remaining = anonymousLimiter.check(clientIp);
+                    res.writeHead(200, {
+                        'Content-Type': 'application/json',
+                        'X-RateLimit-Limit': '3',
+                        'X-RateLimit-Remaining': String(remaining.remaining),
+                        'X-RateLimit-Reset': remaining.resetAt.toISOString(),
+                    });
                     res.end(JSON.stringify(response));
                 } catch (error) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -95,6 +129,22 @@ export async function startMCPServer(config: MCPServerConfig = {}): Promise<void
             resolve();
         });
     });
+}
+
+/**
+ * Extract client IP from request
+ * Handles X-Forwarded-For for proxied requests
+ */
+function getClientIp(req: IncomingMessage): string {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+        const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+        if (value) {
+            const firstIp = value.split(',')[0];
+            return firstIp?.trim() ?? 'unknown';
+        }
+    }
+    return req.socket.remoteAddress ?? 'unknown';
 }
 
 /**
