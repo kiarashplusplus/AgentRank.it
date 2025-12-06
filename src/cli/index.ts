@@ -98,38 +98,135 @@ program
   .argument('<url>', 'URL to navigate to')
   .argument('<goal>', 'The task goal (e.g., "Click the Sign Up button")')
   .option('-t, --timeout <seconds>', 'Timeout in seconds', '300')
+  .option('-v, --verbose', 'Show detailed progress')
+  .option('-d, --debug', 'Show raw Skyvern API response')
   .action(async (url: string, goal: string, options: Record<string, unknown>) => {
-    const spinner = ora('Initializing Skyvern task...').start();
+    const startTime = Date.now();
+    const spinner = ora({
+      text: 'Connecting to Skyvern...',
+      spinner: 'dots',
+    }).start();
 
     try {
       const { SkyvernEngine } = await import('../engines/skyvern.js');
+
+      // Format elapsed time
+      const formatElapsed = (ms: number): string => {
+        if (ms < 1000) return `${ms}ms`;
+        const secs = Math.floor(ms / 1000);
+        if (secs < 60) return `${secs}s`;
+        const mins = Math.floor(secs / 60);
+        return `${mins}m ${secs % 60}s`;
+      };
+
+      // Phase icons and colors
+      const phaseConfig: Record<string, { icon: string; color: 'cyan' | 'yellow' | 'blue' | 'green' | 'red' }> = {
+        connecting: { icon: '🔌', color: 'cyan' },
+        queued: { icon: '⏳', color: 'yellow' },
+        running: { icon: '🤖', color: 'blue' },
+        processing: { icon: '⚙️', color: 'blue' },
+        completed: { icon: '✓', color: 'green' },
+        failed: { icon: '✗', color: 'red' },
+      };
+
+      let lastTaskId: string | undefined;
+
       const skyvern = new SkyvernEngine({
         timeout: parseInt(options.timeout as string, 10) * 1000,
+        debug: options.debug as boolean,
+        onProgress: (status) => {
+          const config = phaseConfig[status.phase] ?? { icon: '•', color: 'cyan' as const };
+          const elapsed = status.elapsed ? chalk.gray(` [${formatElapsed(status.elapsed)}]`) : '';
+
+          // Build stats string
+          const stats: string[] = [];
+          if (status.stepCount && status.stepCount > 0) {
+            stats.push(`${status.stepCount} step${status.stepCount > 1 ? 's' : ''}`);
+          }
+          if (status.screenshotCount && status.screenshotCount > 0) {
+            stats.push(`📸 ${status.screenshotCount}`);
+          }
+          const statsStr = stats.length > 0 ? chalk.gray(` (${stats.join(', ')})`) : '';
+
+          spinner.text = `${config.icon} ${chalk[config.color](status.message)}${statsStr}${elapsed}`;
+          if (status.taskId) lastTaskId = status.taskId;
+        },
       });
 
       const available = await skyvern.isAvailable();
       if (!available) {
         spinner.fail('Skyvern not available');
-        console.error(chalk.red('Start Skyvern with: docker-compose -f docker-compose.skyvern.yml up -d'));
+        console.error(chalk.red('\n  Start Skyvern with: docker-compose -f docker-compose.skyvern.yml up -d'));
         process.exit(1);
       }
 
-      spinner.text = `Running task: ${chalk.cyan(goal)}`;
+      spinner.text = `🎯 Starting task: ${chalk.cyan(goal)}`;
 
       const result = await skyvern.customTask(url, goal);
+      const totalTime = Date.now() - startTime;
 
       spinner.stop();
 
+      // Print header
+      console.log('\n' + chalk.bold('═══════════════════════════════════════════════════════'));
+      console.log(chalk.bold('  Skyvern Task Result'));
+      console.log(chalk.bold('═══════════════════════════════════════════════════════\n'));
+
+      // Task info
+      console.log(chalk.gray('  URL:      ') + chalk.cyan(url));
+      console.log(chalk.gray('  Goal:     ') + goal);
+      console.log(chalk.gray('  Task ID:  ') + (lastTaskId ?? result.taskId ?? 'unknown'));
+      console.log(chalk.gray('  Duration: ') + formatElapsed(totalTime));
+      console.log('');
+
       if (result.success) {
-        console.log(chalk.green('\n✓ Task completed successfully'));
-        console.log(chalk.gray(`Task ID: ${result.taskId}`));
-        if (result.screenshotPath) {
-          console.log(chalk.gray(`Screenshot: ${result.screenshotPath}`));
+        console.log(chalk.green.bold('  ✓ TASK COMPLETED'));
+        console.log('');
+
+        // Goal achievement
+        if (result.elementFound) {
+          console.log(chalk.green('  🎯 Goal Achieved: Yes'));
+        } else {
+          console.log(chalk.yellow('  🎯 Goal Achieved: Unable to determine'));
         }
-        console.log(chalk.gray(`Result: ${result.transcript}`));
+
+        // Screenshot
+        if (result.screenshotPath) {
+          console.log(chalk.gray('  📸 Screenshot: ') + result.screenshotPath);
+        }
+
+        // Transcript
+        if (result.transcript && options.verbose) {
+          console.log('');
+          console.log(chalk.gray('  Transcript:'));
+          console.log(chalk.italic('  ' + result.transcript));
+        }
+
+        // Extracted info
+        if (result.extractedInfo && Object.keys(result.extractedInfo).length > 0) {
+          console.log('');
+          console.log(chalk.gray('  Extracted Info:'));
+          for (const [key, value] of Object.entries(result.extractedInfo)) {
+            console.log(chalk.gray(`    ${key}: `) + String(value));
+          }
+        }
       } else {
-        console.log(chalk.red('\n✗ Task failed'));
-        console.log(chalk.red(`Error: ${result.error}`));
+        console.log(chalk.red.bold('  ✗ TASK FAILED'));
+        console.log('');
+        console.log(chalk.red('  Error: ') + (result.error ?? 'Unknown error'));
+      }
+
+      // Debug output
+      if (options.debug && result.rawResponse) {
+        console.log('');
+        console.log(chalk.gray('  Raw Skyvern Response:'));
+        console.log(chalk.gray(JSON.stringify(result.rawResponse, null, 2)));
+      }
+
+      console.log('\n' + chalk.bold('═══════════════════════════════════════════════════════\n'));
+
+      if (!result.success) {
+        process.exit(1);
       }
     } catch (error) {
       spinner.fail('Task failed');
