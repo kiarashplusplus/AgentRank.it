@@ -43,7 +43,7 @@ services:
 
       # LLM Configuration - OpenAI (default)
       - ENABLE_OPENAI=true
-      - LLM_KEY=OPENAI_GPT4O
+      - LLM_KEY=OPENAI_O4_MINI
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       # Alternative: Anthropic Claude (uncomment below, comment OpenAI above)
       # - ENABLE_ANTHROPIC=true
