@@ -94,23 +94,36 @@ program
 
 program
   .command('task')
-  .description('Run a custom Skyvern task (Vision-LLM)')
+  .description('Run a browser automation task (browser-use or Skyvern)')
   .argument('<url>', 'URL to navigate to')
   .argument('<goal>', 'The task goal (e.g., "Click the Sign Up button")')
   .option('-t, --timeout <seconds>', 'Timeout in seconds', '300')
   .option('-v, --verbose', 'Show detailed progress')
   .option('-d, --debug', 'Show raw Skyvern API response')
+  .option('-e, --engine <engine>', 'Engine to use: browser-use or skyvern', 'browser-use')
   .action(async (url: string, goal: string, options: Record<string, unknown>) => {
     const startTime = Date.now();
+    const engineType = options.engine as string;
+
     const spinner = ora({
-      text: 'Connecting to Skyvern...',
+      text: `Connecting to ${engineType}...`,
       spinner: 'dots',
     }).start();
 
     try {
-      const { SkyvernEngine } = await import('../engines/skyvern.js');
+      // Common result interface
+      interface TaskResult {
+        success: boolean;
+        taskId?: string;
+        elementFound?: boolean;
+        transcript?: string;
+        extractedInfo?: Record<string, unknown>;
+        rawResponse?: unknown;
+        error?: string;
+        screenshotPath?: string;
+      }
 
-      // Format elapsed time
+      // Format elapsed time helper
       const formatElapsed = (ms: number): string => {
         if (ms < 1000) return `${ms}ms`;
         const secs = Math.floor(ms / 1000);
@@ -119,57 +132,92 @@ program
         return `${mins}m ${secs % 60}s`;
       };
 
-      // Phase icons and colors
-      const phaseConfig: Record<string, { icon: string; color: 'cyan' | 'yellow' | 'blue' | 'green' | 'red' }> = {
-        connecting: { icon: '🔌', color: 'cyan' },
-        queued: { icon: '⏳', color: 'yellow' },
-        running: { icon: '🤖', color: 'blue' },
-        processing: { icon: '⚙️', color: 'blue' },
-        completed: { icon: '✓', color: 'green' },
-        failed: { icon: '✗', color: 'red' },
-      };
-
+      let result: TaskResult;
       let lastTaskId: string | undefined;
 
-      const skyvern = new SkyvernEngine({
-        timeout: parseInt(options.timeout as string, 10) * 1000,
-        debug: options.debug as boolean,
-        onProgress: (status) => {
-          const config = phaseConfig[status.phase] ?? { icon: '•', color: 'cyan' as const };
-          const elapsed = status.elapsed ? chalk.gray(` [${formatElapsed(status.elapsed)}]`) : '';
+      if (engineType === 'browser-use') {
+        const { BrowserUseServerEngine } = await import('../engines/browser-use-server.js');
+        const engine = new BrowserUseServerEngine({
+          debug: options.debug as boolean,
+          timeout: parseInt(options.timeout as string, 10) * 1000,
+        });
 
-          // Build stats string
-          const stats: string[] = [];
-          if (status.stepCount && status.stepCount > 0) {
-            stats.push(`${status.stepCount} step${status.stepCount > 1 ? 's' : ''}`);
-          }
-          if (status.screenshotCount && status.screenshotCount > 0) {
-            stats.push(`📸 ${status.screenshotCount}`);
-          }
-          const statsStr = stats.length > 0 ? chalk.gray(` (${stats.join(', ')})`) : '';
+        const available = await engine.isAvailable();
+        if (!available) {
+          spinner.fail('Browser-Use Engine not available');
+          console.error(chalk.red('\n  Start the engine with: docker-compose -f docker-compose.skyvern.yml up -d'));
+          process.exit(1);
+        }
 
-          spinner.text = `${config.icon} ${chalk[config.color](status.message)}${statsStr}${elapsed}`;
-          if (status.taskId) lastTaskId = status.taskId;
-        },
-      });
+        spinner.text = `🎯 Starting task: ${chalk.cyan(goal)}`;
+        const engineResult = await engine.runTask(url, goal);
 
-      const available = await skyvern.isAvailable();
-      if (!available) {
-        spinner.fail('Skyvern not available');
-        console.error(chalk.red('\n  Start Skyvern with: docker-compose -f docker-compose.skyvern.yml up -d'));
-        process.exit(1);
-      }
+        // Map to common result format
+        result = {
+          success: engineResult.success,
+          taskId: 'local-task',
+          elementFound: engineResult.success,
+          transcript: engineResult.output,
+          extractedInfo: engineResult.success ? { output: engineResult.output, steps: engineResult.steps } : undefined,
+          rawResponse: engineResult.rawResponse,
+          error: engineResult.error,
+        };
 
-      spinner.text = `🎯 Starting task: ${chalk.cyan(goal)}`;
+      } else {
+        // Skyvern Engine (Legacy)
+        const { SkyvernEngine } = await import('../engines/skyvern.js');
 
-      const result = await skyvern.customTask(url, goal);
+        // Phase icons and colors
+        const phaseConfig: Record<string, { icon: string; color: 'cyan' | 'yellow' | 'blue' | 'green' | 'red' }> = {
+          connecting: { icon: '🔌', color: 'cyan' },
+          queued: { icon: '⏳', color: 'yellow' },
+          running: { icon: '🤖', color: 'blue' },
+          processing: { icon: '⚙️', color: 'blue' },
+          completed: { icon: '✓', color: 'green' },
+          failed: { icon: '✗', color: 'red' },
+        };
+
+        const skyvern = new SkyvernEngine({
+          timeout: parseInt(options.timeout as string, 10) * 1000,
+          debug: options.debug as boolean,
+          onProgress: (status) => {
+            const config = phaseConfig[status.phase] ?? { icon: '•', color: 'cyan' as const };
+            const elapsed = status.elapsed ? chalk.gray(` [${formatElapsed(status.elapsed)}]`) : '';
+
+            // Build stats string
+            const stats: string[] = [];
+            if (status.stepCount && status.stepCount > 0) {
+              stats.push(`${status.stepCount} step${status.stepCount > 1 ? 's' : ''}`);
+            }
+            if (status.screenshotCount && status.screenshotCount > 0) {
+              stats.push(`📸 ${status.screenshotCount}`);
+            }
+            const statsStr = stats.length > 0 ? chalk.gray(` (${stats.join(', ')})`) : '';
+
+            spinner.text = `${config.icon} ${chalk[config.color](status.message)}${statsStr}${elapsed}`;
+            if (status.taskId) lastTaskId = status.taskId;
+          },
+        });
+
+        const available = await skyvern.isAvailable();
+        if (!available) {
+          spinner.fail('Skyvern not available');
+          console.error(chalk.red('\n  Start Skyvern with: docker-compose -f docker-compose.skyvern.yml up -d'));
+          process.exit(1);
+        }
+
+        spinner.text = `🎯 Starting task: ${chalk.cyan(goal)}`;
+
+        result = await skyvern.customTask(url, goal);
+      } // End of else block for Skyvern
+
       const totalTime = Date.now() - startTime;
 
       spinner.stop();
 
       // Print header
       console.log('\n' + chalk.bold('═══════════════════════════════════════════════════════'));
-      console.log(chalk.bold('  Skyvern Task Result'));
+      console.log(chalk.bold(`  ${engineType === 'browser-use' ? 'Browser-Use' : 'Skyvern'} Task Result`));
       console.log(chalk.bold('═══════════════════════════════════════════════════════\n'));
 
       // Task info
@@ -219,7 +267,7 @@ program
       // Debug output
       if (options.debug && result.rawResponse) {
         console.log('');
-        console.log(chalk.gray('  Raw Skyvern Response:'));
+        console.log(chalk.gray(`  Raw ${engineType === 'browser-use' ? 'Browser-Use' : 'Skyvern'} Response:`));
         console.log(chalk.gray(JSON.stringify(result.rawResponse, null, 2)));
       }
 
