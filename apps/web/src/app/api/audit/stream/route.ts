@@ -1,9 +1,26 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { diagnosticTasks } from "@/lib/agentrank";
+import deepScanConfig from "@/config/deep-scan.json";
 
 // Browser-use engine endpoint
 const ENGINE_URL = process.env.ENGINE_URL || "http://localhost:8001";
+
+// Load tasks from config (only enabled ones)
+interface TaskConfig {
+    name: string;
+    signal: string;
+    icon: string;
+    hint: string;
+    enabled: boolean;
+    prompt: string;
+}
+
+function getEnabledTasks(limit?: number): TaskConfig[] {
+    const enabled = (deepScanConfig.tasks as TaskConfig[]).filter(t => t.enabled);
+    const maxFromConfig = deepScanConfig.maxTasks;
+    const effectiveLimit = limit ?? maxFromConfig ?? enabled.length;
+    return enabled.slice(0, effectiveLimit);
+}
 
 // Rate limiting
 const anonymousLimits = new Map<string, { count: number; resetAt: number }>();
@@ -34,6 +51,9 @@ function checkAnonymousLimit(ip: string): { allowed: boolean; remaining: number 
 
 export async function GET(request: NextRequest) {
     const url = request.nextUrl.searchParams.get("url");
+    // Secret: ?tasks=1 to limit number of tasks for testing
+    const tasksParam = request.nextUrl.searchParams.get("tasks");
+    const taskLimit = tasksParam ? parseInt(tasksParam, 10) : undefined;
 
     if (!url) {
         return new Response("URL required", { status: 400 });
@@ -70,18 +90,19 @@ export async function GET(request: NextRequest) {
                     return;
                 }
 
-                send({ type: "start", message: "Starting deep scan...", total: diagnosticTasks.length });
+                send({ type: "start", message: "Starting deep scan...", total: getEnabledTasks(taskLimit).length });
 
                 const results: Record<string, { score: number; status: string; details: string }> = {};
                 let completedTasks = 0;
                 let lastVideoUrl: string | undefined;
+                const tasksToRun = getEnabledTasks(taskLimit);
 
                 // Run each diagnostic task
-                for (const task of diagnosticTasks) {
+                for (const task of tasksToRun) {
                     send({
                         type: "progress",
                         step: completedTasks + 1,
-                        total: diagnosticTasks.length,
+                        total: tasksToRun.length,
                         task: `${task.icon} ${task.name}...`,
                         hint: task.hint,
                         signal: task.signal,
@@ -92,7 +113,7 @@ export async function GET(request: NextRequest) {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ url, task: task.prompt }),
-                            signal: AbortSignal.timeout(120000), // 2 min per task
+                            signal: AbortSignal.timeout(300000), // 5 min per task
                         });
 
                         if (response.ok) {

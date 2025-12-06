@@ -1,0 +1,38 @@
+{
+    "description": "Deep scan configuration - modify enabled tasks for testing",
+    "maxTasks": null,
+    "tasks": [
+        {
+            "name": "Analyzing Structure",
+            "signal": "structure",
+            "icon": "🔍",
+            "hint": "Finding headings, navigation, and semantic HTML elements",
+            "enabled": true,
+            "prompt": "Analyze this page's HTML structure and report your findings:\n\n1. Find and report the main heading (h1 tag)\n2. Check if there is a navigation element (<nav>)\n3. Check if there is a main content area (<main>)\n4. Check for semantic elements: <article>, <section>, <aside>, <header>, <footer>\n5. Note if the page relies heavily on generic <div> tags\n\nFormat your response as:\nHEADING: [the h1 text or \"MISSING\"]\nNAV: [YES/NO]\nMAIN: [YES/NO]\nSEMANTIC_COUNT: [number of semantic elements found]\nNOTES: [any observations about the structure]"
+        },
+        {
+            "name": "Testing Accessibility",
+            "signal": "accessibility",
+            "icon": "♿",
+            "hint": "Checking button labels, image alt text, and link quality",
+            "enabled": true,
+            "prompt": "Analyze the page's accessibility for AI agents:\n\n1. Count all buttons and check if they have readable labels (text or aria-label)\n2. Count all images and check if they have alt text\n3. Check link quality - are they descriptive or just \"click here\"?\n4. Look for form inputs without labels\n5. Check for proper heading hierarchy\n\nFormat your response as:\nBUTTONS: [total count], [count with labels]\nIMAGES: [total count], [count with alt text]\nLINKS: [good/poor] - describe why\nFORMS: [any issues found]\nNOTES: [other accessibility observations]"
+        },
+        {
+            "name": "Measuring Hydration",
+            "signal": "hydration",
+            "icon": "⏱️",
+            "hint": "Testing page load speed and interactive element responsiveness",
+            "enabled": true,
+            "prompt": "Test the page's interactivity and responsiveness:\n\n1. Note how quickly the page content appeared\n2. Try to interact with a button or link - does it respond immediately?\n3. Check if there are loading spinners or skeleton screens\n4. Look for JavaScript-heavy dynamic content\n5. Note any delays in content appearing\n\nFormat your response as:\nLOAD_TIME: [fast/medium/slow] - estimate in seconds if possible\nINTERACTIVE: [YES/NO] - could you interact with elements?\nRESPONSIVENESS: [immediate/delayed] - how fast did interactions work?\nDYNAMIC_CONTENT: [YES/NO] - is there content loaded after initial page load?\nNOTES: [any observations about page performance]"
+        },
+        {
+            "name": "Checking Hostility",
+            "signal": "hostility",
+            "icon": "🛡️",
+            "hint": "Looking for CAPTCHAs, cookie banners, and popup blockers",
+            "enabled": true,
+            "prompt": "Check for elements that block or hinder automated access:\n\n1. Look for CAPTCHAs (reCAPTCHA, hCaptcha, Cloudflare Turnstile)\n2. Check for cookie consent banners - do they block content?\n3. Look for popups or modals that appear automatically\n4. Check if main content is accessible without dismissing anything\n5. Look for anti-bot measures or rate limiting messages\n\nFormat your response as:\nCAPTCHA: [YES/NO] - describe type if present\nCOOKIE_BANNER: [YES/NO/BLOCKING] - BLOCKING means it covers content\nPOPUPS: [YES/NO] - describe any automatic popups\nCONTENT_ACCESSIBLE: [YES/NO] - can you reach the main content?\nNOTES: [any observations about bot-blocking]"
+        }
+    ]
+}

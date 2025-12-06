@@ -44,6 +44,7 @@ interface EngineResponse {
     output?: string;
     steps?: number;
     transcript?: string[];
+    videoUrl?: string;
     error?: string;
 }
 
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
                 output: result.output,
                 steps: result.steps || 0,
                 transcript: result.transcript || [],
+                videoUrl: result.videoUrl,
                 error: result.error,
                 creditsRemaining,
                 tier,

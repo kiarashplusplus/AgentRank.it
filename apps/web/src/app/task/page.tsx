@@ -9,6 +9,7 @@ interface TaskResult {
     output?: string;
     steps?: number;
     transcript?: string[];
+    videoUrl?: string;
     error?: string;
     creditsRemaining?: number;
     tier?: string;
@@ -176,6 +177,26 @@ export default function TaskPage() {
                             {result.creditsRemaining !== undefined && (
                                 <div className="pt-4 border-t text-xs text-muted-foreground">
                                     {result.creditsRemaining} credits remaining ({result.tier} tier)
+                                </div>
+                            )}
+
+                            {/* Video Replay */}
+                            {result.videoUrl && (
+                                <div className="pt-4 border-t">
+                                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                                        <span>🎥</span> Agent Replay
+                                    </h3>
+                                    <div className="rounded-lg overflow-hidden border bg-black">
+                                        <video
+                                            src={result.videoUrl}
+                                            controls
+                                            className="w-full"
+                                            poster="/replay-poster.png"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                        Watch the AI agent navigate the page
+                                    </p>
                                 </div>
                             )}
                         </div>
