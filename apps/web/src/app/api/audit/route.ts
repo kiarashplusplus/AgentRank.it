@@ -2,19 +2,79 @@ import { NextRequest, NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
+import { auth } from "@clerk/nextjs/server";
 
 const execAsync = promisify(exec);
 
+// In-memory rate limiter for anonymous users (from Phase 1)
+const anonymousLimits = new Map<string, { count: number; resetAt: number }>();
+const ANONYMOUS_LIMIT = 3;
+const ANONYMOUS_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function getClientIp(request: NextRequest): string {
+    return (
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        request.headers.get("x-real-ip") ||
+        "unknown"
+    );
+}
+
+function checkAnonymousLimit(ip: string): { allowed: boolean; remaining: number } {
+    const now = Date.now();
+    const record = anonymousLimits.get(ip);
+
+    if (!record || now > record.resetAt) {
+        anonymousLimits.set(ip, { count: 1, resetAt: now + ANONYMOUS_WINDOW_MS });
+        return { allowed: true, remaining: ANONYMOUS_LIMIT - 1 };
+    }
+
+    if (record.count >= ANONYMOUS_LIMIT) {
+        return { allowed: false, remaining: 0 };
+    }
+
+    record.count++;
+    return { allowed: true, remaining: ANONYMOUS_LIMIT - record.count };
+}
+
 export async function POST(request: NextRequest) {
     try {
-        const body = (await request.json()) as { url?: string };
-        const { url } = body;
+        const body = (await request.json()) as { url?: string; mode?: "quick" | "deep" };
+        const { url, mode = "quick" } = body;
 
         if (!url || typeof url !== "string") {
             return NextResponse.json(
                 { error: "URL is required" },
                 { status: 400 }
             );
+        }
+
+        // Check authentication
+        const { userId } = await auth();
+        let creditsRemaining: number | null = null;
+        let tier = "anonymous";
+
+        if (userId) {
+            // Authenticated user - check credits from D1
+            // NOTE: D1 integration requires Cloudflare deployment
+            // For now, allow unlimited for authenticated users in dev
+            tier = "free";
+            creditsRemaining = 50; // Placeholder until D1 is configured
+        } else {
+            // Anonymous user - check IP-based rate limit
+            const ip = getClientIp(request);
+            const limitCheck = checkAnonymousLimit(ip);
+
+            if (!limitCheck.allowed) {
+                return NextResponse.json(
+                    {
+                        error: "Rate limit exceeded. Sign in for more scans.",
+                        creditsRemaining: 0,
+                        tier: "anonymous",
+                    },
+                    { status: 429 }
+                );
+            }
+            creditsRemaining = limitCheck.remaining;
         }
 
         // Path to the AgentRank CLI (relative to monorepo root)
@@ -40,7 +100,7 @@ export async function POST(request: NextRequest) {
         const response = {
             url: result.meta?.url || url,
             agentScore: result.agentScore || result.agent_score || 0,
-            mode: result.meta?.scanMode || "quick",
+            mode: result.meta?.scanMode || mode,
             costUsd: result.meta?.costUsd || 0.002,
             escalated: result.escalation?.triggered || false,
             signals: Object.entries(result.signals || {}).map(([name, signal]: [string, unknown]) => {
@@ -53,6 +113,10 @@ export async function POST(request: NextRequest) {
                     details: s.details || "",
                 };
             }),
+            // Credit info
+            creditsRemaining,
+            tier,
+            userId: userId || null,
         };
 
         return NextResponse.json(response);

@@ -21,6 +21,9 @@ interface AuditResult {
   costUsd: number;
   escalated: boolean;
   signals: Signal[];
+  creditsRemaining: number | null;
+  tier: string;
+  userId: string | null;
 }
 
 export default function Home() {
@@ -133,6 +136,30 @@ export default function Home() {
                         <span className="text-muted-foreground">Escalated</span>
                         <span>{result.escalated ? "Yes" : "No"}</span>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Credits Info */}
+                  <div className="rounded-lg border bg-card p-6">
+                    <h2 className="text-lg font-semibold mb-4">Credits</h2>
+                    <div className="grid gap-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Tier</span>
+                        <span className="capitalize font-medium">
+                          {result.tier}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Remaining</span>
+                        <span className={result.creditsRemaining === 0 ? "text-destructive" : ""}>
+                          {result.creditsRemaining ?? "Unlimited"}
+                        </span>
+                      </div>
+                      {result.tier === "anonymous" && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Sign in for 50 free scans/month
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
