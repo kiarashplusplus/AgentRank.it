@@ -52,6 +52,7 @@ function checkAnonymousLimit(ip: string): { allowed: boolean; remaining: number 
 
 export async function GET(request: NextRequest) {
     const url = request.nextUrl.searchParams.get("url");
+    const prepPrompt = request.nextUrl.searchParams.get("prepPrompt");
     // Secret: ?tasks=1 to limit number of tasks for testing
     const tasksParam = request.nextUrl.searchParams.get("tasks");
     const taskLimit = tasksParam ? parseInt(tasksParam, 10) : undefined;
@@ -91,95 +92,148 @@ export async function GET(request: NextRequest) {
                     return;
                 }
 
-                send({ type: "start", message: "Starting deep scan...", total: getEnabledTasks(taskLimit).length });
+                const tasksToRun = getEnabledTasks(taskLimit);
+                const totalSteps = prepPrompt ? tasksToRun.length + 1 : tasksToRun.length;
+                send({ type: "start", message: "Starting deep scan...", total: totalSteps });
+
+                // Build scan request for unified endpoint (single browser session)
+                const scanTasks = tasksToRun.map(task => ({
+                    name: task.name,
+                    signal: task.signal,
+                    prompt: task.prompt,
+                }));
+
+                // Call unified scan endpoint - runs ALL tasks in ONE browser session
+                const response = await fetch(`${ENGINE_URL}/scan/stream`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        url,
+                        tasks: scanTasks,
+                        prep_prompt: prepPrompt || null,
+                    }),
+                    signal: AbortSignal.timeout(600000), // 10 min total timeout
+                });
+
+                if (!response.ok || !response.body) {
+                    send({ type: "error", message: "Failed to connect to browser engine" });
+                    controller.close();
+                    return;
+                }
 
                 const results: Record<string, { score: number; status: string; details: string }> = {};
-                let completedTasks = 0;
                 let lastVideoUrl: string | undefined;
-                const tasksToRun = getEnabledTasks(taskLimit);
+                let completedTasks = 0;
 
-                // Run each diagnostic task
-                for (const task of tasksToRun) {
-                    send({
-                        type: "progress",
-                        step: completedTasks + 1,
-                        total: tasksToRun.length,
-                        task: `${task.icon} ${task.name}...`,
-                        hint: task.hint,
-                        signal: task.signal,
-                    });
+                // Process SSE stream from Python engine
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
 
-                    try {
-                        const response = await fetch(`${ENGINE_URL}/task`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ url, task: task.prompt }),
-                            signal: AbortSignal.timeout(300000), // 5 min per task
-                        });
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
 
-                        if (response.ok) {
-                            const data = await response.json() as { success: boolean; output?: string; error?: string; videoUrl?: string };
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop() || "";
 
-                            if (data.success && data.output) {
-                                // Simple scoring based on output
-                                const score = calculateScore(task.signal, data.output);
-                                results[task.signal] = {
-                                    score,
-                                    status: score >= 80 ? "pass" : score >= 50 ? "warn" : "fail",
-                                    details: data.output.slice(0, 200),
-                                };
+                    for (const line of lines) {
+                        if (line.startsWith("data: ")) {
+                            try {
+                                const event = JSON.parse(line.slice(6));
 
-                                // Capture video URL if present
-                                if (data.videoUrl) {
-                                    lastVideoUrl = data.videoUrl;
+                                if (event.type === "start") {
+                                    // Already sent our start, but could update if needed
+                                } else if (event.type === "progress") {
+                                    // Forward task progress
+                                    const taskConfig = tasksToRun.find(t => t.signal === event.signal);
+                                    send({
+                                        type: "progress",
+                                        step: event.task_index,
+                                        total: totalSteps,
+                                        task: event.signal === "prep"
+                                            ? "🛡️ Running prep action..."
+                                            : `${taskConfig?.icon || "📋"} ${event.name}...`,
+                                        hint: event.signal === "prep"
+                                            ? "Bypassing blockers before scan"
+                                            : (taskConfig?.hint || ""),
+                                        signal: event.signal,
+                                    });
+                                } else if (event.type === "step") {
+                                    // Forward agent steps
+                                    send({
+                                        type: "agent_step",
+                                        signal: event.signal || "scan",
+                                        step: event.step,
+                                        action: event.action,
+                                        status: event.status,
+                                    });
+                                } else if (event.type === "task_complete") {
+                                    completedTasks++;
+                                    if (event.signal !== "prep") {
+                                        // Calculate score for diagnostic tasks
+                                        const score = calculateScore(event.signal, event.output || "");
+                                        results[event.signal] = {
+                                            score,
+                                            status: score >= 80 ? "pass" : score >= 50 ? "warn" : "fail",
+                                            details: (event.output || "").slice(0, 200),
+                                        };
+                                        send({
+                                            type: "task_complete",
+                                            signal: event.signal,
+                                            score,
+                                            output: (event.output || "").slice(0, 300),
+                                        });
+                                    } else {
+                                        send({
+                                            type: "task_complete",
+                                            signal: "prep",
+                                            score: 100,
+                                            output: "Prep action completed",
+                                        });
+                                    }
+                                } else if (event.type === "task_failed") {
+                                    completedTasks++;
+                                    if (event.signal !== "prep") {
+                                        results[event.signal] = { score: 50, status: "warn", details: event.error || "Failed" };
+                                    }
+                                    send({ type: "task_failed", signal: event.signal, error: event.error });
+                                } else if (event.type === "complete") {
+                                    // Scan finished - calculate final score
+                                    if (event.videoUrl) {
+                                        lastVideoUrl = event.videoUrl;
+                                    }
+
+                                    // Calculate weighted score
+                                    let totalScore = 0;
+                                    let totalWeight = 0;
+
+                                    for (const task of tasksToRun) {
+                                        if (results[task.signal]) {
+                                            totalScore += results[task.signal].score * task.weight;
+                                            totalWeight += task.weight;
+                                        }
+                                    }
+
+                                    const agentScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 50;
+
+                                    send({
+                                        type: "complete",
+                                        agentScore,
+                                        signals: results,
+                                        escalated: true,
+                                        videoUrl: lastVideoUrl,
+                                    });
+                                } else if (event.type === "error") {
+                                    send({ type: "error", message: event.message });
                                 }
-
-                                send({
-                                    type: "task_complete",
-                                    signal: task.signal,
-                                    score,
-                                    output: data.output.slice(0, 300),
-                                });
-                            } else {
-                                results[task.signal] = { score: 50, status: "warn", details: data.error || "No output" };
-                                send({ type: "task_failed", signal: task.signal, error: data.error });
+                            } catch {
+                                // Ignore parse errors
                             }
-                        } else {
-                            results[task.signal] = { score: 50, status: "warn", details: "Request failed" };
-                            send({ type: "task_failed", signal: task.signal, error: "Request failed" });
                         }
-                    } catch (err) {
-                        results[task.signal] = { score: 50, status: "warn", details: "Timeout or error" };
-                        send({
-                            type: "task_failed",
-                            signal: task.signal,
-                            error: err instanceof Error ? err.message : "Unknown error"
-                        });
-                    }
-
-                    completedTasks++;
-                }
-
-                // Calculate final score using weights from config
-                let totalScore = 0;
-                let totalWeight = 0;
-
-                for (const task of tasksToRun) {
-                    if (results[task.signal]) {
-                        totalScore += results[task.signal].score * task.weight;
-                        totalWeight += task.weight;
                     }
                 }
-
-                const agentScore = Math.round(totalScore / totalWeight);
-
-                send({
-                    type: "complete",
-                    agentScore,
-                    signals: results,
-                    escalated: true,
-                    videoUrl: lastVideoUrl,
-                });
 
                 controller.close();
             } catch (err) {

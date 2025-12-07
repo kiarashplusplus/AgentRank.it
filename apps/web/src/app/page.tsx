@@ -44,18 +44,24 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [scanMode, setScanMode] = useState<"quick" | "deep">("quick");
+  const [scanLog, setScanLog] = useState<string[]>([]);
+  const [showScanLog, setShowScanLog] = useState(false);
 
-  const handleAudit = async (url: string, mode: "quick" | "deep" = "quick") => {
+  const handleAudit = async (url: string, mode: "quick" | "deep" = "quick", prepPrompt?: string) => {
     setIsLoading(true);
     setError(null);
     setResult(null);
     setProgress(null);
     setScanMode(mode);
+    setScanLog([]);
+    setShowScanLog(false);
 
     try {
       if (mode === "deep") {
         // Use streaming endpoint for deep scan
-        const eventSource = new EventSource(`/api/audit/stream?url=${encodeURIComponent(url)}`);
+        const params = new URLSearchParams({ url });
+        if (prepPrompt) params.set("prepPrompt", prepPrompt);
+        const eventSource = new EventSource(`/api/audit/stream?${params.toString()}`);
 
         eventSource.onmessage = (event) => {
           const data = JSON.parse(event.data);
@@ -71,15 +77,27 @@ export default function Home() {
               outputs: prev?.outputs || [],
             }));
           } else if (data.type === "task_complete") {
+            const logEntry = `✅ ${data.output?.slice(0, 150) || "Completed"}`;
             setProgress(prev => ({
               ...prev!,
-              outputs: [...(prev?.outputs || []), `${data.output?.slice(0, 150) || "Completed"}`],
+              outputs: [...(prev?.outputs || []), logEntry],
             }));
+            setScanLog(prev => [...prev, logEntry]);
           } else if (data.type === "task_failed") {
+            const logEntry = `⚠️ ${data.error || "Task failed"}`;
             setProgress(prev => ({
               ...prev!,
-              outputs: [...(prev?.outputs || []), `⚠️ ${data.error || "Task failed"}`],
+              outputs: [...(prev?.outputs || []), logEntry],
             }));
+            setScanLog(prev => [...prev, logEntry]);
+          } else if (data.type === "agent_step") {
+            // Real-time agent step from browser-use
+            const logEntry = `🔄 ${data.action}`;
+            setProgress(prev => ({
+              ...prev!,
+              outputs: [...(prev?.outputs || []), logEntry],
+            }));
+            setScanLog(prev => [...prev, logEntry]);
           } else if (data.type === "complete") {
             eventSource.close();
             setResult({
@@ -309,6 +327,37 @@ export default function Home() {
                 <div className="mt-8">
                   <h2 className="text-lg font-semibold mb-4">Agent Replay</h2>
                   <ReplayPlayer videoUrl={result.videoUrl} />
+                </div>
+              )}
+
+              {/* Scan Log (collapsible) */}
+              {scanLog.length > 0 && (
+                <div className="mt-8">
+                  <button
+                    onClick={() => setShowScanLog(!showScanLog)}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <svg
+                      className={`h-4 w-4 transition-transform ${showScanLog ? 'rotate-90' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    View Scan Log ({scanLog.length} steps)
+                  </button>
+                  {showScanLog && (
+                    <div className="mt-3 rounded-lg border bg-muted/30 p-4 max-h-64 overflow-y-auto">
+                      <div className="space-y-1">
+                        {scanLog.map((log, idx) => (
+                          <div key={idx} className="text-xs text-muted-foreground font-mono">
+                            {log}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </>
