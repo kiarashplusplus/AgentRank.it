@@ -45,16 +45,16 @@ describe('Hostility Analyzer', () => {
       expect(result.details).toContain('Cloudflare Turnstile');
     });
 
-    it('should FAIL for .cf-turnstile class reference', async () => {
-      const html = `<script src="turnstile.js">.cf-turnstile { display: block; }</script>`;
+    it('should FAIL for cf-turnstile class on element', async () => {
+      const html = `<div class="cf-turnstile" data-sitekey="abc123"></div>`;
       const result = await hostilityAnalyzer.analyze(createContext(html));
 
       expect(result.status).toBe('fail');
       expect(result.details).toContain('Cloudflare Turnstile');
     });
 
-    it('should FAIL for #challenge-running (Cloudflare challenge)', async () => {
-      const html = `<div data-selector="#challenge-running"></div>`;
+    it('should FAIL for challenge-running element (Cloudflare challenge)', async () => {
+      const html = `<div id="challenge-running" class="challenge-running"></div>`;
       const result = await hostilityAnalyzer.analyze(createContext(html));
 
       expect(result.status).toBe('fail');
@@ -63,11 +63,8 @@ describe('Hostility Analyzer', () => {
   });
 
   describe('Bot Blocker Detection - reCAPTCHA', () => {
-    it('should FAIL for .g-recaptcha', async () => {
-      // The analyzer checks for literal ".g-recaptcha" string
-      const html = `
-                <script>grecaptcha.render('.g-recaptcha', { sitekey: 'abcd1234' });</script>
-            `;
+    it('should FAIL for g-recaptcha element', async () => {
+      const html = `<div class="g-recaptcha" data-sitekey="abcd1234"></div>`;
       const result = await hostilityAnalyzer.analyze(createContext(html));
 
       expect(result.status).toBe('fail');
@@ -75,8 +72,8 @@ describe('Hostility Analyzer', () => {
       expect(result.details).toContain('reCAPTCHA');
     });
 
-    it('should FAIL for #recaptcha', async () => {
-      const html = `<script>document.querySelector('#recaptcha').render();</script>`;
+    it('should FAIL for recaptcha element', async () => {
+      const html = `<div id="recaptcha"></div>`;
       const result = await hostilityAnalyzer.analyze(createContext(html));
 
       expect(result.status).toBe('fail');
@@ -84,16 +81,16 @@ describe('Hostility Analyzer', () => {
   });
 
   describe('Bot Blocker Detection - hCaptcha', () => {
-    it('should FAIL for .h-captcha', async () => {
-      const html = `<style>.h-captcha { width: 100%; }</style>`;
+    it('should FAIL for h-captcha element', async () => {
+      const html = `<div class="h-captcha" data-sitekey="xyz789"></div>`;
       const result = await hostilityAnalyzer.analyze(createContext(html));
 
       expect(result.status).toBe('fail');
       expect(result.details).toContain('hCaptcha');
     });
 
-    it('should FAIL for #hcaptcha', async () => {
-      const html = `<link data-target="#hcaptcha" />`;
+    it('should FAIL for hcaptcha script', async () => {
+      const html = `<script src="https://js.hcaptcha.com/1/api.js" async defer></script>`;
       const result = await hostilityAnalyzer.analyze(createContext(html));
 
       expect(result.status).toBe('fail');

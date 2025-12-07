@@ -11,17 +11,24 @@ AgentRank.it measures how reliably an AI agent can navigate your website. While 
 ## 🚀 Quick Start
 
 ```bash
-# Install dependencies
-npm install
+# Run directly with npx (no install required)
+npx agentrank audit https://example.com
 
-# Run an audit
-npx tsx src/cli/index.ts audit https://example.com
+# Or install globally
+npm install -g agentrank
+agentrank audit https://example.com
 
-# Build for production
-npm run build
+# Or add to your project
+npm install agentrank
+```
 
-# Run built CLI
-npm start audit https://example.com
+### Programmatic Usage
+
+```typescript
+import { scanUrl } from 'agentrank';
+
+const result = await scanUrl({ url: 'https://example.com' });
+console.log(`Agent Score: ${result.agentScore}/100`);
 ```
 
 ## 🐳 Deep Mode Setup (Optional)
@@ -132,19 +139,27 @@ POST /mcp
 }
 ```
 
-## 📦 Programmatic Usage
+## 📦 Advanced Programmatic Usage
 
 ```typescript
-import { scanUrl } from 'agentrank';
+import { scanUrl, calculateScore, getGrade } from 'agentrank';
 
+// Full options
 const result = await scanUrl({
   url: 'https://example.com',
-  mode: 'quick',
-  timeout: 30000,
+  mode: 'deep',           // 'quick' (default) or 'deep'
+  timeout: 60000,         // Timeout in ms (default: 30000)
+  skipEscalation: false,  // Skip visual fallback (default: false)
+  verbose: true,          // Enable verbose logging
 });
 
-console.log(`Agent Score: ${result.agentScore}/100`);
-console.log(`Transcript: ${result.narrative.transcript}`);
+// Access individual signals
+result.signals.permissions.status;  // 'pass' | 'warn' | 'fail'
+result.signals.structure.score;     // 0-100
+result.signals.accessibility.recommendations; // string[]
+
+// Get grade
+const grade = getGrade(result.agentScore); // 'A' | 'B' | 'C' | 'D' | 'F'
 ```
 
 ## 🛠️ Development

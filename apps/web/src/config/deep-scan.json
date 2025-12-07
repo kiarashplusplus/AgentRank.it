@@ -1,6 +1,6 @@
 {
     "description": "Deep scan configuration (v1.2) - Optimized for Browser Use/MCP & Agent-Readiness",
-    "maxTasks": 1,
+    "maxTasks": null,
     "tasks": [
         {
             "name": "Permissions & Token Economy",
