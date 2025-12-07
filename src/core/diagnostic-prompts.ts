@@ -9,7 +9,7 @@
 
 export interface DiagnosticTask {
     name: string;
-    signal: 'structure' | 'accessibility' | 'hydration' | 'hostility';
+    signal: 'permissions' | 'structure' | 'accessibility' | 'hydration' | 'hostility';
     icon: string;
     prompt: string;
     parseResult: (output: string) => DiagnosticResult;
@@ -335,9 +335,76 @@ NOTES: [description of any barriers encountered]`,
 };
 
 /**
+ * Permissions Task: Analyze Agent Economy (robots.txt, ai.txt, token cost)
+ */
+export const permissionsTask: DiagnosticTask = {
+    name: 'Permissions & Token Economy',
+    signal: 'permissions',
+    icon: '📜',
+    prompt: `Analyze the 'Agent Economy' of this page. Do not summarize content; assess access costs:
+
+1. Check for 'robots.txt' or 'ai.txt' restrictions regarding GPTBot or ClaudeBot.
+2. Estimate 'Token Heaviness': Count the total distinct nodes in the Accessibility Tree. Is it >50k tokens (High Cost)?
+3. Check for 'Context Trap': Are there massive encoded strings or hidden data dumps in the DOM?
+
+Format response as:
+ROBOTS_STATUS: [ALLOWED/BLOCKED/UNKNOWN]
+TOKEN_ESTIMATE: [LOW/MED/HIGH]
+CONTEXT_TRAP: [YES/NO]
+NOTES: [Specific agent-blocking directives found]`,
+
+    parseResult: (output: string): DiagnosticResult => {
+        const findings: string[] = [];
+        let score = 100;
+
+        // Parse robots status
+        if (output.match(/ROBOTS_STATUS:\s*BLOCKED/i)) {
+            findings.push('AI agents blocked by robots.txt');
+            score -= 40;
+        } else if (output.match(/ROBOTS_STATUS:\s*UNKNOWN/i)) {
+            findings.push('Unable to determine robots.txt status');
+            score -= 10;
+        } else {
+            findings.push('AI agents allowed by robots.txt');
+        }
+
+        // Parse token estimate
+        if (output.match(/TOKEN_ESTIMATE:\s*HIGH/i)) {
+            findings.push('High token cost (>50k estimated)');
+            score -= 30;
+        } else if (output.match(/TOKEN_ESTIMATE:\s*MED/i)) {
+            findings.push('Medium token cost');
+            score -= 15;
+        } else {
+            findings.push('Low token cost');
+        }
+
+        // Parse context trap
+        if (output.match(/CONTEXT_TRAP:\s*YES/i)) {
+            findings.push('Context trap detected (hidden data dumps)');
+            score -= 20;
+        }
+
+        // Parse notes
+        const notesMatch = output.match(/NOTES:\s*(.+)/is);
+        if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
+            findings.push(notesMatch[1].trim());
+        }
+
+        return {
+            score: Math.max(0, Math.round(score)),
+            status: score >= 80 ? 'pass' : score >= 50 ? 'warn' : 'fail',
+            details: findings.slice(0, 2).join('. '),
+            findings,
+        };
+    },
+};
+
+/**
  * All diagnostic tasks in execution order
  */
 export const diagnosticTasks: DiagnosticTask[] = [
+    permissionsTask,
     structureTask,
     accessibilityTask,
     hydrationTask,

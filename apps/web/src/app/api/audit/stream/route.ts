@@ -9,6 +9,7 @@ const ENGINE_URL = process.env.ENGINE_URL || "http://localhost:8001";
 interface TaskConfig {
     name: string;
     signal: string;
+    weight: number;
     icon: string;
     hint: string;
     enabled: boolean;
@@ -159,22 +160,16 @@ export async function GET(request: NextRequest) {
                     completedTasks++;
                 }
 
-                // Calculate final score
-                const weights = { structure: 25, accessibility: 25, hydration: 15, hostility: 15, permissions: 20 };
+                // Calculate final score using weights from config
                 let totalScore = 0;
                 let totalWeight = 0;
 
-                for (const [signal, weight] of Object.entries(weights)) {
-                    if (results[signal]) {
-                        totalScore += results[signal].score * weight;
-                        totalWeight += weight;
+                for (const task of tasksToRun) {
+                    if (results[task.signal]) {
+                        totalScore += results[task.signal].score * task.weight;
+                        totalWeight += task.weight;
                     }
                 }
-
-                // Add permissions as pass (no browser check needed)
-                results.permissions = { score: 100, status: "pass", details: "No robots.txt restrictions" };
-                totalScore += 100 * 20;
-                totalWeight += 20;
 
                 const agentScore = Math.round(totalScore / totalWeight);
 
@@ -203,30 +198,50 @@ export async function GET(request: NextRequest) {
     });
 }
 
-// Simple score calculation from output
+// Score calculation based on structured output from prompts
 function calculateScore(signal: string, output: string): number {
     let score = 100;
     const lower = output.toLowerCase();
 
     switch (signal) {
+        case "permissions":
+            // ROBOTS_STATUS: [ALLOWED/BLOCKED/UNKNOWN], TOKEN_ESTIMATE: [LOW/MED/HIGH], CONTEXT_TRAP: [YES/NO]
+            if (lower.includes("robots_status: blocked")) score -= 40;
+            if (lower.includes("robots_status: unknown")) score -= 10;
+            if (lower.includes("token_estimate: high")) score -= 30;
+            if (lower.includes("token_estimate: med")) score -= 15;
+            if (lower.includes("context_trap: yes")) score -= 20;
+            break;
         case "structure":
-            if (lower.includes("missing") || lower.includes("no h1")) score -= 20;
-            if (lower.includes("nav: no")) score -= 15;
-            if (lower.includes("main: no")) score -= 15;
+            // PRIMARY_ACTION_REACHABLE: [YES/NO], SEMANTIC_DENSITY: [HIGH/LOW], LANDMARKS_DETECTED
+            if (lower.includes("primary_action_reachable: no")) score -= 25;
+            if (lower.includes("semantic_density: low")) score -= 25;
+            if (!lower.includes("nav") && !lower.includes("main")) score -= 20;
             break;
         case "accessibility":
-            if (lower.includes("poor")) score -= 20;
-            if (lower.includes("missing label")) score -= 15;
+            // AMBIGUOUS_LINKS: [Count], GHOST_BUTTONS: [Count], LABEL_INTEGRITY: [PASS/FAIL]
+            if (lower.includes("label_integrity: fail")) score -= 30;
+            const ghostMatch = output.match(/ghost_buttons:\s*(\d+)/i);
+            if (ghostMatch && parseInt(ghostMatch[1]) > 0) score -= Math.min(30, parseInt(ghostMatch[1]) * 5);
+            const ambigMatch = output.match(/ambiguous_links:\s*(\d+)/i);
+            if (ambigMatch && parseInt(ambigMatch[1]) > 3) score -= 20;
             break;
         case "hydration":
-            if (lower.includes("slow")) score -= 30;
-            if (lower.includes("medium")) score -= 10;
-            if (lower.includes("unresponsive")) score -= 30;
+            // LATE_HYDRATION: [YES/NO], SKELETON_LOADERS: [YES/NO], STABILITY_SCORE: [1-100]
+            if (lower.includes("late_hydration: yes")) score -= 25;
+            if (lower.includes("skeleton_loaders: yes")) score -= 15;
+            const stabilityMatch = output.match(/stability_score:\s*(\d+)/i);
+            if (stabilityMatch) {
+                const stability = parseInt(stabilityMatch[1]);
+                if (stability < 50) score -= 30;
+                else if (stability < 80) score -= 15;
+            }
             break;
         case "hostility":
-            if (lower.includes("captcha: yes")) score -= 50;
-            if (lower.includes("blocking")) score -= 20;
-            if (lower.includes("popups: yes")) score -= 15;
+            // HARD_BLOCKER: [YES/NO], SOFT_BLOCKER: [YES/NO], TRAP_DETECTED: [YES/NO]
+            if (lower.includes("hard_blocker: yes")) score -= 50;
+            if (lower.includes("soft_blocker: yes") && !lower.includes("dismissable")) score -= 20;
+            if (lower.includes("trap_detected: yes")) score -= 30;
             break;
     }
 

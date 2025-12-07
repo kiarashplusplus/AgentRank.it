@@ -15,6 +15,7 @@ export { calculateScore, getGrade, getScoreSummary } from './core/score.js';
 // Diagnostic prompts (for deep scan)
 export {
   diagnosticTasks,
+  permissionsTask,
   structureTask,
   accessibilityTask,
   hydrationTask,
