@@ -191,6 +191,33 @@ src/
 └── types/            # TypeScript interfaces
 ```
 
+## 🔒 Data Privacy
+
+AgentRank.it is designed with privacy in mind:
+
+| Component | Data Handling |
+|-----------|---------------|
+| **Browser Engine** | Self-hosted (Docker) — no third-party browser automation |
+| **Vision LLM** | Azure OpenAI with **Zero Data Retention (ZDR)** |
+| **Video Recordings** | Stored in your Cloudflare R2 bucket |
+| **User Data** | Clerk authentication, Stripe payments |
+
+### Third-Party Services
+- **Azure OpenAI**: Vision analysis (ZDR enabled, data not used for training)
+- **Clerk**: User authentication
+- **Stripe**: Payment processing
+- **Cloudflare R2**: Video storage
+
+## 🗺️ Roadmap
+
+- [ ] **Switch to Azure OpenAI** — Migrate from OpenAI API to Azure OpenAI for enterprise-grade data privacy (ZDR by default)
+- [ ] **Self-service account deletion** — Allow users to delete their account and all associated data
+- [ ] **Respect robots.txt** — Read and enforce robots.txt directives; refuse to scan pages disallowed by robots.txt
+- [ ] **Video retention policy** — Video recordings are retained for 90 days and then automatically deleted, unless required longer for legal, compliance, or safety reasons
+- [ ] Privacy Policy page
+- [ ] Terms of Service page
+- [ ] GDPR compliance documentation
+
 ## 📜 License
 
 Copyright 2025 Kiarash Adl

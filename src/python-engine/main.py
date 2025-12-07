@@ -34,16 +34,42 @@ RECORDINGS_DIR.mkdir(exist_ok=True)
 
 
 def get_llm():
-    """Get LLM based on available API keys"""
-    openai_key = os.getenv("OPENAI_API_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    """Get LLM based on available API keys
     
+    Priority:
+    1. Azure OpenAI (if AZURE_OPENAI_* vars are set) - recommended for data privacy
+    2. OpenAI (if OPENAI_API_KEY is set)
+    3. Anthropic (if ANTHROPIC_API_KEY is set)
+    """
+    # Check Azure OpenAI first (enterprise-grade with Zero Data Retention)
+    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    azure_key = os.getenv("AZURE_OPENAI_API_KEY")
+    azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
+    azure_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+    
+    if azure_endpoint and azure_key:
+        # Use browser_use's ChatAzureOpenAI (compatible with browser-use Agent)
+        from browser_use.llm import ChatAzureOpenAI
+        
+        return ChatAzureOpenAI(
+            model=azure_deployment,  # Required positional arg for browser_use's wrapper
+            azure_endpoint=azure_endpoint,
+            api_key=azure_key,
+            azure_deployment=azure_deployment,
+            api_version=azure_version,
+        )
+    
+    # Fallback to standard OpenAI
+    openai_key = os.getenv("OPENAI_API_KEY")
     if openai_key:
         return ChatOpenAI(model="gpt-4o", api_key=openai_key)
-    elif anthropic_key:
+    
+    # Fallback to Anthropic
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    if anthropic_key:
         return ChatAnthropic(model="claude-3-5-sonnet-20241022", api_key=anthropic_key)
-    else:
-        raise ValueError("No API key found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY")
+    
+    raise ValueError("No API key found. Set AZURE_OPENAI_* (recommended), OPENAI_API_KEY, or ANTHROPIC_API_KEY")
 
 
 class TaskRequest(BaseModel):

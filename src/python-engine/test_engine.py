@@ -82,9 +82,38 @@ class TestHealthEndpoint:
 class TestLLMConfiguration:
     """Tests for LLM initialization"""
     
+    def test_get_llm_with_azure_openai(self):
+        """get_llm returns AzureChatOpenAI when Azure vars are set"""
+        with patch.dict(os.environ, {
+            "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com/",
+            "AZURE_OPENAI_API_KEY": "test-key",
+            "OPENAI_API_KEY": "",
+            "ANTHROPIC_API_KEY": ""
+        }):
+            from main import get_llm
+            llm = get_llm()
+            assert "Azure" in type(llm).__name__
+    
+    def test_azure_takes_priority_over_openai(self):
+        """Azure OpenAI takes priority over standard OpenAI"""
+        with patch.dict(os.environ, {
+            "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com/",
+            "AZURE_OPENAI_API_KEY": "azure-key",
+            "OPENAI_API_KEY": "openai-key",
+            "ANTHROPIC_API_KEY": ""
+        }):
+            from main import get_llm
+            llm = get_llm()
+            assert "Azure" in type(llm).__name__
+    
     def test_get_llm_with_openai_key(self):
-        """get_llm returns ChatOpenAI when OPENAI_API_KEY is set"""
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key", "ANTHROPIC_API_KEY": ""}):
+        """get_llm returns ChatOpenAI when OPENAI_API_KEY is set (no Azure)"""
+        with patch.dict(os.environ, {
+            "AZURE_OPENAI_ENDPOINT": "",
+            "AZURE_OPENAI_API_KEY": "",
+            "OPENAI_API_KEY": "test-key",
+            "ANTHROPIC_API_KEY": ""
+        }):
             from main import get_llm
             llm = get_llm()
             
@@ -93,7 +122,12 @@ class TestLLMConfiguration:
     
     def test_get_llm_with_anthropic_key(self):
         """get_llm returns ChatAnthropic when ANTHROPIC_API_KEY is set"""
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "", "ANTHROPIC_API_KEY": "test-key"}):
+        with patch.dict(os.environ, {
+            "AZURE_OPENAI_ENDPOINT": "",
+            "AZURE_OPENAI_API_KEY": "",
+            "OPENAI_API_KEY": "",
+            "ANTHROPIC_API_KEY": "test-key"
+        }):
             from main import get_llm
             llm = get_llm()
             
@@ -101,8 +135,15 @@ class TestLLMConfiguration:
     
     def test_get_llm_raises_without_key(self):
         """get_llm raises ValueError when no API key is set"""
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "", "ANTHROPIC_API_KEY": ""}, clear=False):
+        with patch.dict(os.environ, {
+            "AZURE_OPENAI_ENDPOINT": "",
+            "AZURE_OPENAI_API_KEY": "",
+            "OPENAI_API_KEY": "",
+            "ANTHROPIC_API_KEY": ""
+        }, clear=False):
             # Clear the keys
+            os.environ.pop("AZURE_OPENAI_ENDPOINT", None)
+            os.environ.pop("AZURE_OPENAI_API_KEY", None)
             os.environ.pop("OPENAI_API_KEY", None)
             os.environ.pop("ANTHROPIC_API_KEY", None)
             
