@@ -6,3 +6,5 @@ langchain-community
 python-dotenv
 playwright
 boto3
+pytest
+httpx

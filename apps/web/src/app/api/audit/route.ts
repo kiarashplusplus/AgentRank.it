@@ -77,15 +77,55 @@ export async function POST(request: NextRequest) {
             creditsRemaining = limitCheck.remaining;
         }
 
+        // Validate URL is reachable and returns 2xx before running scan
+        let targetUrl = url;
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            const response = await fetch(url, {
+                method: "GET",
+                redirect: "follow",
+                signal: controller.signal,
+                headers: {
+                    "User-Agent": "AgentRank/1.0 URL Validator"
+                }
+            });
+            clearTimeout(timeoutId);
+
+            // Update URL to final destination after redirects
+            targetUrl = response.url;
+
+            // Require 2xx status code
+            if (response.status < 200 || response.status >= 300) {
+                return NextResponse.json(
+                    { error: `URL returned status ${response.status} (expected 200-299): ${targetUrl}` },
+                    { status: 400 }
+                );
+            }
+        } catch (fetchError) {
+            const errorMessage = fetchError instanceof Error ? fetchError.message : "Unknown error";
+            if (errorMessage.includes("abort")) {
+                return NextResponse.json(
+                    { error: `URL timed out after 10 seconds: ${url}` },
+                    { status: 400 }
+                );
+            }
+            return NextResponse.json(
+                { error: `URL is unreachable: ${url}. ${errorMessage}` },
+                { status: 400 }
+            );
+        }
+
         // Path to the AgentRank CLI (relative to monorepo root)
         const cliPath = path.resolve(process.cwd(), "../../dist/cli/index.js");
 
         // Deep mode requires more time for Skyvern analysis
         const timeout = mode === "deep" ? 180000 : 60000;
 
-        // Run the audit command with mode
+        // Run the audit command with mode (use validated/redirected URL)
         const { stdout, stderr } = await execAsync(
-            `node "${cliPath}" audit "${url}" --mode ${mode} --json`,
+            `node "${cliPath}" audit "${targetUrl}" --mode ${mode} --json`,
             {
                 timeout,
                 cwd: path.resolve(process.cwd(), "../.."),

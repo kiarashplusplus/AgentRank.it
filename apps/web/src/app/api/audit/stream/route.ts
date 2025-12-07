@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import deepScanConfig from "@/config/deep-scan.json";
 
+// Configure max duration for long-running deep scans (5 minutes)
+export const maxDuration = 300;
+
 // Browser-use engine endpoint
 const ENGINE_URL = process.env.ENGINE_URL || "http://localhost:8001";
 

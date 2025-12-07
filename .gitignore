@@ -49,3 +49,4 @@ skyvern-har/
 skyvern-log/
 .streamlit/
 postgres-data/
+recordings/

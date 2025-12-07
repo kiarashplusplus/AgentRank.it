@@ -97,6 +97,35 @@ async def run_scan_stream(request: ScanRequest):
                 "total": total_tasks
             })
             
+            # Quick URL reachability check (5 second timeout)
+            # Use GET instead of HEAD for better compatibility, follow redirects
+            yield sse_event("step", {"step": 0, "action": f"Checking URL: {request.url}", "status": "running"})
+            final_url = request.url
+            try:
+                import aiohttp
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                    async with session.get(request.url, allow_redirects=True) as resp:
+                        final_url = str(resp.url)
+                        
+                        # Check for redirects - inform user of final URL
+                        if final_url != request.url:
+                            yield sse_event("step", {"step": 0, "action": f"Redirected to: {final_url}", "status": "done"})
+                        
+                        # Require 2xx status code
+                        if not (200 <= resp.status < 300):
+                            yield sse_event("error", {"message": f"URL returned status {resp.status} (expected 200-299): {final_url}"})
+                            return
+            except asyncio.TimeoutError:
+                yield sse_event("error", {"message": f"URL timed out after 10 seconds: {request.url}"})
+                return
+            except Exception as url_err:
+                yield sse_event("error", {"message": f"URL is unreachable: {request.url}. Error: {str(url_err)[:100]}"})
+                return
+            
+            # Update request URL to final URL after redirects
+            request.url = final_url
+            yield sse_event("step", {"step": 0, "action": f"URL verified (status 200): {final_url}", "status": "done"})
+            
             # Get LLM
             llm = get_llm()
             
@@ -129,27 +158,40 @@ async def run_scan_stream(request: ScanRequest):
                 
                 yield sse_event("step", {"step": total_step_count + 1, "action": f"Running prep: {request.prep_prompt[:50]}...", "status": "running"})
                 
-                # Navigate and run prep
-                full_task = f"Navigate to {request.url}. {request.prep_prompt}"
-                agent = Agent(task=full_task, llm=llm, browser=browser)
-                history = await agent.run()
-                
-                # Emit history steps
-                if hasattr(history, 'history'):
-                    for i, step in enumerate(history.history):
-                        total_step_count += 1
-                        step_str = str(step)[:200]
-                        yield sse_event("step", {
-                            "step": total_step_count,
-                            "action": step_str,
-                            "status": "done",
-                            "signal": "prep"
-                        })
-                
-                yield sse_event("task_complete", {
-                    "signal": "prep",
-                    "output": "Prep action completed",
-                })
+                try:
+                    # Navigate and run prep with 60 second timeout
+                    full_task = f"Navigate to {request.url}. {request.prep_prompt}"
+                    agent = Agent(task=full_task, llm=llm, browser=browser)
+                    history = await asyncio.wait_for(agent.run(), timeout=60.0)
+                    
+                    # Emit history steps
+                    if hasattr(history, 'history'):
+                        for i, step in enumerate(history.history):
+                            total_step_count += 1
+                            step_str = str(step)[:200]
+                            yield sse_event("step", {
+                                "step": total_step_count,
+                                "action": step_str,
+                                "status": "done",
+                                "signal": "prep"
+                            })
+                    
+                    yield sse_event("task_complete", {
+                        "signal": "prep",
+                        "output": "Prep action completed",
+                    })
+                except asyncio.TimeoutError:
+                    yield sse_event("task_failed", {
+                        "signal": "prep",
+                        "error": f"Prep action timed out after 60 seconds. URL may be unreachable: {request.url}",
+                    })
+                    # Continue with diagnostic tasks anyway - they might still work
+                except Exception as prep_err:
+                    yield sse_event("task_failed", {
+                        "signal": "prep",
+                        "error": f"Prep action failed: {str(prep_err)[:200]}",
+                    })
+                    # Continue with diagnostic tasks anyway
             
             # Run each diagnostic task in the SAME browser session
             for task in request.tasks:
