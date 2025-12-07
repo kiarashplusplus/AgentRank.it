@@ -1,0 +1,13 @@
+# npm publish ignore
+README.npm.md
+README.repo.md
+src/
+apps/
+*.test.ts
+*.test.js
+tsconfig.json
+vitest.config.ts
+eslint.config.js
+.prettierrc
+.env*
+docker-compose*.yml
