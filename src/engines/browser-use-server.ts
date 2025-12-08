@@ -26,7 +26,7 @@ export class BrowserUseServerEngine {
 
     constructor(config: BrowserUseServerConfig = {}) {
         this.config = {
-            endpoint: config.endpoint ?? 'http://localhost:8001',
+            endpoint: config.endpoint ?? process.env.BROWSER_USE_ENDPOINT ?? 'http://localhost:8001',
             timeout: config.timeout ?? 300000, // 5 minutes
             debug: config.debug ?? false,
         };

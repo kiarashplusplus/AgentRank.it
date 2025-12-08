@@ -62,6 +62,73 @@ AgentRank uses a **Reactive Escalation** architecture to balance cost and accura
 - **Cost**: ~$0.02/scan
 - **Speed**: 30-90 seconds
 
+## 🔧 Deep Mode Setup
+
+Deep mode requires a self-hosted browser-use engine with Vision-LLM capabilities.
+
+### Requirements
+
+- Docker
+- An LLM API key (one of the following):
+  - **Azure OpenAI** (recommended for data privacy)
+  - OpenAI API key
+  - Anthropic API key
+
+### 1. Configure Environment
+
+Create a `.env` file in the project root:
+
+```bash
+# Option A: Azure OpenAI (recommended - Zero Data Retention)
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_API_KEY=your-azure-key
+AZURE_OPENAI_DEPLOYMENT=gpt-4o
+AZURE_OPENAI_API_VERSION=2024-02-15-preview
+
+# Option B: OpenAI
+OPENAI_API_KEY=sk-your-openai-key
+
+# Option C: Anthropic
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-key
+
+# Optional: Custom browser-use engine endpoint (default: http://localhost:8001)
+BROWSER_USE_ENDPOINT=http://localhost:8001
+
+# Optional: Cloudflare R2 for session replay video storage
+R2_ACCOUNT_ID=your-cloudflare-account-id
+R2_ACCESS_KEY=your-r2-access-key
+R2_SECRET_KEY=your-r2-secret-key
+R2_BUCKET_NAME=agentrank-replays
+R2_PUBLIC_URL=https://replays.yourdomain.com
+```
+
+### 2. Start the Engine
+
+```bash
+docker-compose -f docker-compose.yml up -d
+```
+
+This starts the browser-use engine on `http://localhost:8001`.
+
+### 3. Run Deep Mode Audit
+
+```bash
+npx agentrank audit https://example.com --mode=deep
+```
+
+### Verify Engine Status
+
+```bash
+curl http://localhost:8001/health
+# Expected: {"status":"ok","video_recording":true,"streaming":true}
+```
+
+### Stop the Engine
+
+```bash
+docker-compose -f docker-compose.yml down
+```
+
 ## 💻 CLI Usage
 
 ```bash

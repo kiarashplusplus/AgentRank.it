@@ -54,6 +54,8 @@ result.signals.structure.score;     // 0-100
 result.signals.accessibility.recommendations; // string[]
 ```
 
+> **Note**: Deep mode (`mode: 'deep'`) requires a self-hosted browser-use engine. See [Deep Mode Setup](https://github.com/kiarashplusplus/AgentRank.it#-deep-mode-setup) for Docker configuration.
+
 ## Agent Visibility Score
 
 | Signal | Weight | What It Measures |
