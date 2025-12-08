@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  engine:
+    build:
+      context: ./src/python-engine
+      dockerfile: Dockerfile
+    image: agentrank-engine:latest
+    container_name: agentrank-engine
+    restart: always
+    user: "1000:1000"
+    ports:
+      - "8001:8000"
+    environment:
+      # LLM Configuration
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-4o}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION:-2024-02-15-preview}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+      # Storage Configuration
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_ACCESS_KEY=${R2_ACCESS_KEY}
+      - R2_SECRET_KEY=${R2_SECRET_KEY}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME:-agentrank-replays}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
+
+      # System Configuration
+      - PYTHONUNBUFFERED=1
+
+    # In production, we assume the code is baked into the image.
+    # We only mount data volumes for persistence.
+    volumes:
+      - ./engine-data:/app/data
+      - ./recordings:/app/recordings
+
+    # Resource Limits for Production
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+    # Logging Configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Health check is defined in Dockerfile, but can be overridden here if needed.
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3

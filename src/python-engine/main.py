@@ -16,6 +16,7 @@ import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 from r2_upload import upload_video, cleanup_local_video
+import logging
 
 # Import LLM classes
 try:
@@ -28,9 +29,48 @@ load_dotenv()
 
 app = FastAPI()
 
+# Setup structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='{"timestamp": "%(asctime)s", "level": "%(levelname)s", "message": "%(message)s"}',
+    datefmt='%Y-%m-%dT%H:%M:%S%z'
+)
+logger = logging.getLogger("agentrank-engine")
+
 # Ensure recordings directory exists
 RECORDINGS_DIR = Path("/app/recordings")
-RECORDINGS_DIR.mkdir(exist_ok=True)
+RECORDINGS_DIR.mkdir(exist_ok=True, parents=True)
+
+async def cleanup_old_recordings():
+    """Background task to clean up recordings older than 1 hour"""
+    while True:
+        try:
+            logger.info("Running background cleanup of old recordings")
+            now = asyncio.get_event_loop().time() # Use loop time for relative check or time.time
+            import time
+            current_time = time.time()
+            one_hour_ago = current_time - 3600
+            
+            # Check for files older than 1 hour
+            if RECORDINGS_DIR.exists():
+                for scan_dir in RECORDINGS_DIR.iterdir():
+                    if scan_dir.is_dir():
+                        # Check modification time
+                        stat = scan_dir.stat()
+                        if stat.st_mtime < one_hour_ago:
+                            logger.info(f"Removing old recording directory: {scan_dir}")
+                            import shutil
+                            shutil.rmtree(scan_dir, ignore_errors=True)
+                            
+        except Exception as e:
+            logger.error(f"Error in background cleanup: {e}")
+            
+        # Run every 15 minutes
+        await asyncio.sleep(900)
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(cleanup_old_recordings())
 
 
 def get_llm():
