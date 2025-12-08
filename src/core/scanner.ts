@@ -29,6 +29,7 @@ import {
 import { BrowserUseEngine } from '../engines/browser-use.js';
 import { BrowserUseServerEngine } from '../engines/browser-use-server.js';
 import { generateTranscript } from '../transcript/generator.js';
+import { checkRobotsTxt, RobotsBlockedError } from './robots-txt-checker.js';
 
 /**
  * Default scan options
@@ -273,6 +274,26 @@ async function buildContext(
     timeout
   );
 
+  // Check if we're allowed to scan this URL per robots.txt
+  const urlPath = new URL(url).pathname;
+  const robotsCheck = checkRobotsTxt(robotsTxt, urlPath);
+
+  if (!robotsCheck.allowed) {
+    steps.push({
+      action: 'robots_check',
+      result: 'failure',
+      rawLog: robotsCheck.matchedRule,
+      humanReadable: `This URL is disallowed by robots.txt: ${robotsCheck.matchedRule ?? 'Disallow rule matched'}`,
+    });
+    throw new RobotsBlockedError(robotsCheck.matchedRule);
+  }
+
+  steps.push({
+    action: 'robots_check',
+    result: 'success',
+    humanReadable: 'robots.txt allows scanning this URL.',
+  });
+
   steps.push({
     action: 'analyze',
     result: 'success',
@@ -367,10 +388,17 @@ function shouldEscalate(errorMessage: string): boolean {
  */
 function categorizeError(
   message: string
-): 'DNS_FAILURE' | 'TIMEOUT' | 'CONTEXT_EXCEEDED' | 'HOSTILITY_BLOCKED' | 'UNKNOWN' {
+):
+  | 'DNS_FAILURE'
+  | 'TIMEOUT'
+  | 'CONTEXT_EXCEEDED'
+  | 'HOSTILITY_BLOCKED'
+  | 'ROBOTS_BLOCKED'
+  | 'UNKNOWN' {
   if (message.includes('ENOTFOUND') || message.includes('DNS')) return 'DNS_FAILURE';
   if (message.includes('timeout') || message.includes('Timeout')) return 'TIMEOUT';
   if (message.includes('context') || message.includes('token')) return 'CONTEXT_EXCEEDED';
+  if (message.includes('robots.txt') || message.includes('ROBOTS_BLOCKED')) return 'ROBOTS_BLOCKED';
   if (message.includes('blocked') || message.includes('captcha')) return 'HOSTILITY_BLOCKED';
   return 'UNKNOWN';
 }

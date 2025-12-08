@@ -116,6 +116,7 @@ export type ScanErrorCode =
   | 'SKYVERN_BUSY'
   | 'CONTEXT_EXCEEDED'
   | 'HOSTILITY_BLOCKED'
+  | 'ROBOTS_BLOCKED'
   | 'UNKNOWN';
 
 /**

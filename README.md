@@ -221,15 +221,10 @@ apps/
 └── web/              # Next.js web application (agentrank.it)
 ```
 
-## �️ Roadmap
+## 🛣️ Roadmap
 
-- [ ] **Switch to Azure OpenAI** — Migrate from OpenAI API to Azure OpenAI for enterprise-grade data privacy (ZDR by default)
-- [x] **Self-service account deletion** — Allow users to delete their account and all associated data
-- [ ] **Respect robots.txt** — Read and enforce robots.txt directives; refuse to scan pages disallowed by robots.txt
-- [ ] **Video retention policy** — Video recordings are retained for 90 days and then automatically deleted
-- [ ] Privacy Policy page
-- [ ] Terms of Service page
-- [ ] GDPR compliance documentation
+- [x] **Respect robots.txt** — Read and enforce robots.txt directives; refuse to scan pages disallowed by robots.txt
+
 
 ## �📜 License
 

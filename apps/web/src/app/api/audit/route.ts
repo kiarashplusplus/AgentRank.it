@@ -117,6 +117,60 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Check robots.txt before running scan (fast failure)
+        try {
+            const robotsTxtUrl = new URL(targetUrl).origin + "/robots.txt";
+            const robotsRes = await fetch(robotsTxtUrl, {
+                signal: AbortSignal.timeout(5000),
+                headers: { "User-Agent": "AgentRank/1.0" }
+            });
+
+            if (robotsRes.ok) {
+                const robotsTxt = await robotsRes.text();
+                const urlPath = new URL(targetUrl).pathname;
+
+                // Simple robots.txt check - look for Disallow rules that block us
+                const lines = robotsTxt.split("\n");
+                let currentUserAgent = "";
+                let isBlocked = false;
+                let matchedRule = "";
+
+                for (const line of lines) {
+                    const trimmed = line.trim().toLowerCase();
+                    if (trimmed.startsWith("user-agent:")) {
+                        currentUserAgent = trimmed.replace("user-agent:", "").trim();
+                    } else if (trimmed.startsWith("disallow:")) {
+                        const disallowPath = trimmed.replace("disallow:", "").trim();
+                        // Check if this rule applies to us (AgentRank or *)
+                        if ((currentUserAgent === "*" || currentUserAgent === "agentrank") && disallowPath) {
+                            // Check if our path is blocked
+                            if (disallowPath === "/" || urlPath.startsWith(disallowPath)) {
+                                isBlocked = true;
+                                matchedRule = `User-agent: ${currentUserAgent} Disallow: ${disallowPath}`;
+                            }
+                        }
+                    } else if (trimmed.startsWith("allow:") && isBlocked) {
+                        const allowPath = trimmed.replace("allow:", "").trim();
+                        // Check if we have an Allow override
+                        if ((currentUserAgent === "*" || currentUserAgent === "agentrank") && allowPath) {
+                            if (urlPath.startsWith(allowPath) && allowPath.length > (matchedRule.split("Disallow:")[1]?.trim().length || 0)) {
+                                isBlocked = false;
+                            }
+                        }
+                    }
+                }
+
+                if (isBlocked) {
+                    return NextResponse.json(
+                        { error: `This URL is disallowed by robots.txt: ${matchedRule}` },
+                        { status: 403 }
+                    );
+                }
+            }
+        } catch {
+            // robots.txt not found or error = allowed, continue with scan
+        }
+
         // Path to the AgentRank CLI (relative to monorepo root)
         const cliPath = path.resolve(process.cwd(), "../../dist/cli/index.js");
 
