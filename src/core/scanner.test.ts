@@ -228,4 +228,3 @@ describe('Cost Constants', () => {
     expect(COST_PER_DEEP_SCAN).toBe(COST_PER_QUICK_SCAN * 10);
   });
 });
-
