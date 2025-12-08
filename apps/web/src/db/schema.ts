@@ -74,3 +74,40 @@ export type Credit = typeof credits.$inferSelect;
 export type NewCredit = typeof credits.$inferInsert;
 export type AuditHistoryEntry = typeof auditHistory.$inferSelect;
 export type NewAuditHistoryEntry = typeof auditHistory.$inferInsert;
+
+/**
+ * Pending deletions table for tracking failed cleanup attempts
+ *
+ * When a user's Clerk account is deleted but database cleanup fails,
+ * we store the userId here for later retry via cron job.
+ */
+export const pendingDeletions = sqliteTable("pending_deletions", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+
+    // Clerk user ID (user is already deleted from Clerk)
+    userId: text("user_id").notNull(),
+
+    // Timestamp of first failure
+    failedAt: integer("failed_at", { mode: "timestamp" })
+        .notNull()
+        .$defaultFn(() => new Date()),
+
+    // Number of retry attempts
+    retryCount: integer("retry_count").notNull().default(0),
+
+    // Last error message
+    lastError: text("last_error"),
+
+    // Status: 'pending' | 'completed' | 'failed'
+    // - pending: waiting for retry
+    // - completed: cleanup succeeded
+    // - failed: max retries exceeded, needs manual intervention
+    status: text("status").notNull().default("pending"),
+
+    // Last attempt timestamp
+    lastAttemptAt: integer("last_attempt_at", { mode: "timestamp" }),
+});
+
+// Type exports for pending deletions
+export type PendingDeletion = typeof pendingDeletions.$inferSelect;
+export type NewPendingDeletion = typeof pendingDeletions.$inferInsert;

@@ -1,5 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
+import { Settings } from "lucide-react";
 
 /**
  * Header component with auth controls
@@ -40,10 +41,19 @@ export function Header() {
                                     avatarBox: "h-8 w-8",
                                 },
                             }}
-                        />
+                        >
+                            <UserButton.MenuItems>
+                                <UserButton.Link
+                                    label="Settings"
+                                    labelIcon={<Settings className="h-4 w-4" />}
+                                    href="/account"
+                                />
+                            </UserButton.MenuItems>
+                        </UserButton>
                     </SignedIn>
                 </div>
             </div>
         </header>
     );
 }
+
