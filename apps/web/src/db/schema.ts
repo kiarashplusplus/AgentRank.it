@@ -60,6 +60,10 @@ export const auditHistory = sqliteTable("audit_history", {
     // Cost in USD (for tracking)
     costUsd: integer("cost_usd"), // stored as microdollars
 
+    // LLM token usage (for developer cost analysis)
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+
     // Raw JSON result
     resultJson: text("result_json"),
 

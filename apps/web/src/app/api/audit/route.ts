@@ -3,6 +3,8 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import { auth } from "@clerk/nextjs/server";
+import { db } from "@/db";
+import robotsParser from "robots-parser";
 
 const execAsync = promisify(exec);
 
@@ -34,6 +36,52 @@ function checkAnonymousLimit(ip: string): { allowed: boolean; remaining: number 
 
     record.count++;
     return { allowed: true, remaining: ANONYMOUS_LIMIT - record.count };
+}
+
+/**
+ * Check if a URL is blocked by robots.txt using robots-parser library
+ */
+async function checkRobotsTxt(targetUrl: string): Promise<{ blocked: boolean; rule?: string }> {
+    try {
+        const parsedUrl = new URL(targetUrl);
+        const robotsTxtUrl = parsedUrl.origin + "/robots.txt";
+
+        const robotsRes = await fetch(robotsTxtUrl, {
+            signal: AbortSignal.timeout(5000),
+            headers: { "User-Agent": "AgentRank/1.0" }
+        });
+
+        if (!robotsRes.ok) {
+            return { blocked: false };
+        }
+
+        const robotsTxt = await robotsRes.text();
+
+        // Parse robots.txt
+        const robots = robotsParser(robotsTxtUrl, robotsTxt);
+
+        // Check if we're allowed to access this URL
+        // First check as AgentRank, then as generic bot (*)
+        const isAllowedForAgentRank = robots.isAllowed(targetUrl, "AgentRank");
+        const isAllowedForAny = robots.isAllowed(targetUrl, "*");
+
+        // Blocked if explicitly disallowed
+        // robots.isAllowed returns true if allowed, false if disallowed, undefined if no match
+        const isBlocked = isAllowedForAgentRank === false || isAllowedForAny === false;
+
+        if (isBlocked) {
+            return {
+                blocked: true,
+                rule: `URL ${targetUrl} is disallowed by robots.txt`
+            };
+        }
+
+        return { blocked: false };
+    } catch (err) {
+        // robots.txt not found or error = allowed
+        console.error("robots.txt check error:", err);
+        return { blocked: false };
+    }
 }
 
 export async function POST(request: NextRequest) {
@@ -77,6 +125,16 @@ export async function POST(request: NextRequest) {
             creditsRemaining = limitCheck.remaining;
         }
 
+        // Check robots.txt on ORIGINAL URL before following redirects
+        // This catches cases like google.com/groups which redirects but is disallowed
+        const robotsCheck = await checkRobotsTxt(url);
+        if (robotsCheck.blocked) {
+            return NextResponse.json(
+                { error: `This URL is disallowed by robots.txt: ${robotsCheck.rule}` },
+                { status: 403 }
+            );
+        }
+
         // Validate URL is reachable and returns 2xx before running scan
         let targetUrl = url;
         try {
@@ -117,59 +175,20 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check robots.txt before running scan (fast failure)
-        try {
-            const robotsTxtUrl = new URL(targetUrl).origin + "/robots.txt";
-            const robotsRes = await fetch(robotsTxtUrl, {
-                signal: AbortSignal.timeout(5000),
-                headers: { "User-Agent": "AgentRank/1.0" }
-            });
-
-            if (robotsRes.ok) {
-                const robotsTxt = await robotsRes.text();
-                const urlPath = new URL(targetUrl).pathname;
-
-                // Simple robots.txt check - look for Disallow rules that block us
-                const lines = robotsTxt.split("\n");
-                let currentUserAgent = "";
-                let isBlocked = false;
-                let matchedRule = "";
-
-                for (const line of lines) {
-                    const trimmed = line.trim().toLowerCase();
-                    if (trimmed.startsWith("user-agent:")) {
-                        currentUserAgent = trimmed.replace("user-agent:", "").trim();
-                    } else if (trimmed.startsWith("disallow:")) {
-                        const disallowPath = trimmed.replace("disallow:", "").trim();
-                        // Check if this rule applies to us (AgentRank or *)
-                        if ((currentUserAgent === "*" || currentUserAgent === "agentrank") && disallowPath) {
-                            // Check if our path is blocked
-                            if (disallowPath === "/" || urlPath.startsWith(disallowPath)) {
-                                isBlocked = true;
-                                matchedRule = `User-agent: ${currentUserAgent} Disallow: ${disallowPath}`;
-                            }
-                        }
-                    } else if (trimmed.startsWith("allow:") && isBlocked) {
-                        const allowPath = trimmed.replace("allow:", "").trim();
-                        // Check if we have an Allow override
-                        if ((currentUserAgent === "*" || currentUserAgent === "agentrank") && allowPath) {
-                            if (urlPath.startsWith(allowPath) && allowPath.length > (matchedRule.split("Disallow:")[1]?.trim().length || 0)) {
-                                isBlocked = false;
-                            }
-                        }
-                    }
-                }
-
-                if (isBlocked) {
-                    return NextResponse.json(
-                        { error: `This URL is disallowed by robots.txt: ${matchedRule}` },
-                        { status: 403 }
-                    );
-                }
+        // If redirected to a different origin, also check the new origin's robots.txt
+        const originalOrigin = new URL(url).origin;
+        const targetOrigin = new URL(targetUrl).origin;
+        if (originalOrigin !== targetOrigin) {
+            const redirectRobotsCheck = await checkRobotsTxt(targetUrl);
+            if (redirectRobotsCheck.blocked) {
+                return NextResponse.json(
+                    { error: `Redirected URL is disallowed by robots.txt: ${redirectRobotsCheck.rule}` },
+                    { status: 403 }
+                );
             }
-        } catch {
-            // robots.txt not found or error = allowed, continue with scan
         }
+
+        // (robots.txt already checked above for both original and redirected URLs)
 
         // Path to the AgentRank CLI (relative to monorepo root)
         const cliPath = path.resolve(process.cwd(), "../../dist/cli/index.js");
@@ -194,7 +213,7 @@ export async function POST(request: NextRequest) {
         const result = JSON.parse(stdout);
 
         // Transform to match our frontend interface
-        const response = {
+        const responseData = {
             url: result.meta?.url || url,
             agentScore: result.agentScore || result.agent_score || 0,
             mode: result.meta?.scanMode || mode,
@@ -217,18 +236,37 @@ export async function POST(request: NextRequest) {
             userId: userId || null,
         };
 
-        return NextResponse.json(response);
+        // Save to audit history for authenticated users
+        if (userId) {
+            try {
+                await db.insertAuditHistory({
+                    userId,
+                    url: responseData.url,
+                    agentScore: responseData.agentScore,
+                    mode: responseData.mode,
+                    escalated: responseData.escalated,
+                    costUsd: Math.round((responseData.costUsd || 0) * 1000000), // Convert to microdollars
+                    resultJson: JSON.stringify(result),
+                });
+            } catch (historyError) {
+                // Log but don't fail the request if history save fails
+                console.error("Failed to save audit history:", historyError);
+            }
+        }
+
+        return NextResponse.json(responseData);
     } catch (error) {
         console.error("Audit error:", error);
 
         if (error instanceof Error) {
             // Check if it's a timeout
-            if (error.message.includes("TIMEOUT")) {
+            if (error.message.includes("TIMEOUT") || error.message.includes("timed out")) {
                 return NextResponse.json(
-                    { error: "Audit timed out. The site may be unresponsive." },
+                    { error: "The scan timed out. The URL might be too slow or complex." },
                     { status: 504 }
                 );
             }
+
             return NextResponse.json(
                 { error: error.message },
                 { status: 500 }
@@ -236,7 +274,7 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json(
-            { error: "Unknown error occurred" },
+            { error: "Failed to run audit" },
             { status: 500 }
         );
     }

@@ -1,6 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { Settings } from "lucide-react";
+import { Settings, History } from "lucide-react";
 
 /**
  * Header component with auth controls
@@ -19,6 +19,12 @@ export function Header() {
                     <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                         Audit
                     </Link>
+                    <SignedIn>
+                        <Link href="/history" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                            <History className="h-4 w-4" />
+                            Audit History
+                        </Link>
+                    </SignedIn>
                     <Link href="/task" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                         Task
                     </Link>

@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { eq, and, lt } from "drizzle-orm";
-import { credits, auditHistory, pendingDeletions } from "@/db/schema";
+import { db } from "@/db";
 
 const MAX_RETRIES = 5;
 
@@ -10,7 +7,7 @@ const MAX_RETRIES = 5;
  * POST /api/cron/cleanup-deletions
  *
  * Process pending account deletions that failed during initial cleanup.
- * Should be triggered by a cron job (Vercel Cron, Cloudflare Scheduled Workers, etc.)
+ * Should be triggered by a cron job (GitHub Actions, Cloudflare Scheduled Workers, etc.)
  *
  * Requires CRON_SECRET header for authentication.
  */
@@ -25,22 +22,8 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const client = createClient({
-            url: process.env.DATABASE_URL || "file:./local.db",
-            authToken: process.env.DATABASE_AUTH_TOKEN,
-        });
-        const db = drizzle(client);
-
         // Get pending deletions that haven't exceeded max retries
-        const pending = await db
-            .select()
-            .from(pendingDeletions)
-            .where(
-                and(
-                    eq(pendingDeletions.status, "pending"),
-                    lt(pendingDeletions.retryCount, MAX_RETRIES)
-                )
-            );
+        const pending = await db.getPendingDeletions();
 
         const results = {
             processed: 0,
@@ -54,17 +37,13 @@ export async function POST(request: NextRequest) {
 
             try {
                 // Attempt to delete user data
-                await db.delete(credits).where(eq(credits.userId, deletion.userId));
-                await db.delete(auditHistory).where(eq(auditHistory.userId, deletion.userId));
+                await db.deleteUserCredits(deletion.userId);
+                await db.deleteAllAuditHistory(deletion.userId);
 
                 // Mark as completed
-                await db
-                    .update(pendingDeletions)
-                    .set({
-                        status: "completed",
-                        lastAttemptAt: new Date(),
-                    })
-                    .where(eq(pendingDeletions.id, deletion.id));
+                await db.updatePendingDeletion(deletion.id, {
+                    status: "completed",
+                });
 
                 results.succeeded++;
             } catch (error) {
@@ -78,15 +57,11 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Update with error and increment retry count
-                await db
-                    .update(pendingDeletions)
-                    .set({
-                        retryCount: newRetryCount,
-                        lastError: error instanceof Error ? error.message : String(error),
-                        lastAttemptAt: new Date(),
-                        status: newStatus,
-                    })
-                    .where(eq(pendingDeletions.id, deletion.id));
+                await db.updatePendingDeletion(deletion.id, {
+                    retryCount: newRetryCount,
+                    lastError: error instanceof Error ? error.message : String(error),
+                    status: newStatus,
+                });
 
                 console.error(`Failed to cleanup deletion ${deletion.id}:`, error);
             }

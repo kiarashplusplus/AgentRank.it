@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
 
 interface TranscriptEntry {
     timestamp: string;
@@ -91,10 +92,13 @@ export function TranscriptChat({
                                 {/* Screenshot thumbnail if available */}
                                 {entry.screenshot && (
                                     <div className="mt-2">
-                                        <img
+                                        <Image
                                             src={entry.screenshot}
                                             alt="Screenshot at this step"
+                                            width={320}
+                                            height={180}
                                             className="rounded-md border max-w-xs cursor-pointer hover:opacity-80 transition-opacity"
+                                            unoptimized
                                         />
                                     </div>
                                 )}

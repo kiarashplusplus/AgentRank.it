@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { eq } from "drizzle-orm";
-import { credits, auditHistory } from "@/db/schema";
+import { db } from "@/db";
 
 /**
  * DELETE /api/account/delete
@@ -35,34 +32,21 @@ export async function DELETE() {
         // Now clean up database records
         // If this fails, queue for retry via cron job
         try {
-            const client = createClient({
-                url: process.env.DATABASE_URL || "file:./local.db",
-                authToken: process.env.DATABASE_AUTH_TOKEN,
-            });
-            const db = drizzle(client);
-
             // Delete user's credits
-            await db.delete(credits).where(eq(credits.userId, userId));
+            await db.deleteUserCredits(userId);
 
             // Delete user's audit history
-            await db.delete(auditHistory).where(eq(auditHistory.userId, userId));
+            await db.deleteAllAuditHistory(userId);
         } catch (dbError) {
             // Log and queue for retry - account is already deleted from Clerk
             console.error("Failed to clean up user data from database:", dbError);
 
             // Try to insert into pending deletions for later cleanup
             try {
-                const client = createClient({
-                    url: process.env.DATABASE_URL || "file:./local.db",
-                    authToken: process.env.DATABASE_AUTH_TOKEN,
-                });
-                const db = drizzle(client);
-                const { pendingDeletions } = await import("@/db/schema");
-
-                await db.insert(pendingDeletions).values({
+                await db.insertPendingDeletion(
                     userId,
-                    lastError: dbError instanceof Error ? dbError.message : String(dbError),
-                });
+                    dbError instanceof Error ? dbError.message : String(dbError)
+                );
             } catch (queueError) {
                 // If we can't even queue, log it - manual intervention required
                 console.error("CRITICAL: Failed to queue pending deletion:", queueError);

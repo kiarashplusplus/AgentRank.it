@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { db } from "@/db";
 import deepScanConfig from "@/config/deep-scan.json";
 
 // Configure max duration for long-running deep scans (5 minutes)
@@ -126,7 +127,7 @@ export async function GET(request: NextRequest) {
 
                 const results: Record<string, { score: number; status: string; details: string }> = {};
                 let lastVideoUrl: string | undefined;
-                let completedTasks = 0;
+
 
                 // Process SSE stream from Python engine
                 const reader = response.body.getReader();
@@ -173,7 +174,7 @@ export async function GET(request: NextRequest) {
                                         status: event.status,
                                     });
                                 } else if (event.type === "task_complete") {
-                                    completedTasks++;
+
                                     if (event.signal !== "prep") {
                                         // Calculate score for diagnostic tasks
                                         const score = calculateScore(event.signal, event.output || "");
@@ -197,7 +198,6 @@ export async function GET(request: NextRequest) {
                                         });
                                     }
                                 } else if (event.type === "task_failed") {
-                                    completedTasks++;
                                     if (event.signal !== "prep") {
                                         results[event.signal] = { score: 50, status: "warn", details: event.error || "Failed" };
                                     }
@@ -207,6 +207,10 @@ export async function GET(request: NextRequest) {
                                     if (event.videoUrl) {
                                         lastVideoUrl = event.videoUrl;
                                     }
+
+                                    // Capture token usage from Python engine
+                                    const totalInputTokens = event.totalInputTokens || 0;
+                                    const totalOutputTokens = event.totalOutputTokens || 0;
 
                                     // Calculate weighted score
                                     let totalScore = 0;
@@ -221,12 +225,33 @@ export async function GET(request: NextRequest) {
 
                                     const agentScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 50;
 
+                                    // Save to audit history for authenticated users
+                                    if (userId) {
+                                        try {
+                                            await db.insertAuditHistory({
+                                                userId,
+                                                url: url as string,
+                                                agentScore,
+                                                mode: "deep",
+                                                escalated: true,
+                                                costUsd: 20000, // $0.02 in microdollars for deep scan
+                                                inputTokens: totalInputTokens,
+                                                outputTokens: totalOutputTokens,
+                                                resultJson: JSON.stringify({ signals: results, videoUrl: lastVideoUrl }),
+                                            });
+                                        } catch (historyError) {
+                                            console.error("Failed to save audit history:", historyError);
+                                        }
+                                    }
+
                                     send({
                                         type: "complete",
                                         agentScore,
                                         signals: results,
                                         escalated: true,
                                         videoUrl: lastVideoUrl,
+                                        inputTokens: totalInputTokens,
+                                        outputTokens: totalOutputTokens,
                                     });
                                 } else if (event.type === "error") {
                                     send({ type: "error", message: event.message });

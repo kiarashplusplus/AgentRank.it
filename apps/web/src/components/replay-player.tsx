@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Play, Pause, Maximize2, Minimize2, RotateCcw } from "lucide-react";
+import { Play, Maximize2, Minimize2, RotateCcw } from "lucide-react";
 
 interface ReplayPlayerProps {
     videoUrl: string;
