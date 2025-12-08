@@ -99,7 +99,8 @@ export class SkyvernEngine {
 
   constructor(config: SkyvernConfig = {}) {
     this.config = {
-      apiEndpoint: config.apiEndpoint ?? process.env.SKYVERN_API_ENDPOINT ?? 'http://localhost:8000/api/v1',
+      apiEndpoint:
+        config.apiEndpoint ?? process.env.SKYVERN_API_ENDPOINT ?? 'http://localhost:8000/api/v1',
       apiKey: config.apiKey ?? process.env.SKYVERN_API_KEY ?? 'agentrank-local-key',
       timeout: config.timeout ?? 300000, // 5 minutes for visual analysis
       onProgress: config.onProgress,
@@ -142,11 +143,8 @@ export class SkyvernEngine {
         const goalAchieved = extractedInfo?.goal_achieved;
         const visualConfirmation = extractedInfo?.visual_confirmation;
 
-        const goalStatus = goalAchieved === true
-          ? 'Yes'
-          : goalAchieved === false
-            ? 'No'
-            : 'Unable to determine';
+        const goalStatus =
+          goalAchieved === true ? 'Yes' : goalAchieved === false ? 'No' : 'Unable to determine';
 
         // Build informative transcript
         let transcript = `Goal achieved: ${goalStatus}`;
@@ -155,9 +153,10 @@ export class SkyvernEngine {
         }
 
         // Get best available screenshot
-        const screenshotPath = status.action_screenshot_urls?.[0]
-          ?? status.screenshot_urls?.[status.screenshot_urls?.length - 1]
-          ?? status.output?.screenshot_url;
+        const screenshotPath =
+          status.action_screenshot_urls?.[0] ??
+          status.screenshot_urls?.[status.screenshot_urls?.length - 1] ??
+          status.output?.screenshot_url;
 
         return {
           success: true,
@@ -213,7 +212,8 @@ IMPORTANT - Completion Criteria:
       body: JSON.stringify({
         url,
         navigation_goal: enhancedGoal,
-        data_extraction_goal: 'After completing the navigation goal, extract: (1) whether the goal was achieved (true/false), (2) what visual confirmation you see, (3) any error messages or issues encountered',
+        data_extraction_goal:
+          'After completing the navigation goal, extract: (1) whether the goal was achieved (true/false), (2) what visual confirmation you see, (3) any error messages or issues encountered',
         navigation_payload: null,
         proxy_location: null,
         webhook_callback_url: null,
@@ -225,7 +225,7 @@ IMPORTANT - Completion Criteria:
       throw new Error(`Failed to create Skyvern task: ${error}`);
     }
 
-    const data = await response.json() as { task_id: string };
+    const data = (await response.json()) as { task_id: string };
     return data.task_id;
   }
 
@@ -249,17 +249,19 @@ IMPORTANT - Completion Criteria:
 
       // Get the latest step action description if available
       const latestStep = status.steps?.[status.steps.length - 1];
-      const latestAction = latestStep?.output?.action_description ?? latestStep?.output?.action_type;
+      const latestAction =
+        latestStep?.output?.action_description ?? latestStep?.output?.action_type;
 
       // Map Skyvern status to our progress phases
-      const phaseMap: Record<string, 'queued' | 'running' | 'processing' | 'completed' | 'failed'> = {
-        'created': 'queued',
-        'queued': 'queued',
-        'running': 'running',
-        'completed': 'completed',
-        'failed': 'failed',
-        'terminated': 'failed',
-      };
+      const phaseMap: Record<string, 'queued' | 'running' | 'processing' | 'completed' | 'failed'> =
+        {
+          created: 'queued',
+          queued: 'queued',
+          running: 'running',
+          completed: 'completed',
+          failed: 'failed',
+          terminated: 'failed',
+        };
 
       const phase = phaseMap[status.status] ?? 'running';
 
@@ -300,7 +302,7 @@ IMPORTANT - Completion Criteria:
         return status;
       }
 
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
     }
 
     throw new Error(`Task ${taskId} timed out after ${this.config.timeout}ms`);

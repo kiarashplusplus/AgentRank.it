@@ -22,10 +22,7 @@ export {
   hostilityTask,
 } from './core/diagnostic-prompts.js';
 
-export type {
-  DiagnosticTask,
-  DiagnosticResult,
-} from './core/diagnostic-prompts.js';
+export type { DiagnosticTask, DiagnosticResult } from './core/diagnostic-prompts.js';
 
 // Ideas generator
 export { generateIdeas, getQuickWins } from './core/ideas.js';

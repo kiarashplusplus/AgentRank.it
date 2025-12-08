@@ -11,16 +11,16 @@ import { structureAnalyzer } from './structure.js';
 import type { AnalyzerContext } from '../types/index.js';
 
 function createContext(html: string): AnalyzerContext {
-    return {
-        url: 'https://example.com',
-        html,
-    };
+  return {
+    url: 'https://example.com',
+    html,
+  };
 }
 
 describe('Structure Analyzer', () => {
-    describe('Semantic Density Analysis', () => {
-        it('should PASS for well-structured semantic HTML', async () => {
-            const html = `
+  describe('Semantic Density Analysis', () => {
+    it('should PASS for well-structured semantic HTML', async () => {
+      const html = `
         <html>
           <head><title>Test</title></head>
           <body>
@@ -36,14 +36,14 @@ describe('Structure Analyzer', () => {
           </body>
         </html>
       `;
-            const result = await structureAnalyzer.analyze(createContext(html));
+      const result = await structureAnalyzer.analyze(createContext(html));
 
-            expect(result.status).toBe('pass');
-            expect(result.score).toBeGreaterThanOrEqual(80);
-        });
+      expect(result.status).toBe('pass');
+      expect(result.score).toBeGreaterThanOrEqual(80);
+    });
 
-        it('should FAIL for div soup (>90% non-semantic)', async () => {
-            const html = `
+    it('should FAIL for div soup (>90% non-semantic)', async () => {
+      const html = `
         <html>
           <body>
             <div><div><div><div><div>
@@ -55,15 +55,15 @@ describe('Structure Analyzer', () => {
           </body>
         </html>
       `;
-            const result = await structureAnalyzer.analyze(createContext(html));
+      const result = await structureAnalyzer.analyze(createContext(html));
 
-            expect(result.status).toBe('fail');
-            expect(result.score).toBe(10);
-            expect(result.details).toContain('Div Soup');
-        });
+      expect(result.status).toBe('fail');
+      expect(result.score).toBe(10);
+      expect(result.details).toContain('Div Soup');
+    });
 
-        it('should WARN for low semantic density (70-90%)', async () => {
-            const html = `
+    it('should WARN for low semantic density (70-90%)', async () => {
+      const html = `
         <html>
           <body>
             <div><div>
@@ -74,30 +74,30 @@ describe('Structure Analyzer', () => {
           </body>
         </html>
       `;
-            const result = await structureAnalyzer.analyze(createContext(html));
+      const result = await structureAnalyzer.analyze(createContext(html));
 
-            expect(result.status).toBe('warn');
-            expect(result.score).toBe(50);
-        });
-
-        it('should FAIL when no HTML provided', async () => {
-            const result = await structureAnalyzer.analyze(createContext(''));
-
-            expect(result.status).toBe('fail');
-            expect(result.score).toBe(0);
-        });
-
-        it('should WARN for minimal HTML structure', async () => {
-            const result = await structureAnalyzer.analyze(createContext('<html></html>'));
-
-            expect(result.status).toBe('warn');
-            expect(result.details).toContain('minimal');
-        });
+      expect(result.status).toBe('warn');
+      expect(result.score).toBe(50);
     });
 
-    describe('Weight', () => {
-        it('should have correct weight of 25', () => {
-            expect(structureAnalyzer.weight).toBe(25);
-        });
+    it('should FAIL when no HTML provided', async () => {
+      const result = await structureAnalyzer.analyze(createContext(''));
+
+      expect(result.status).toBe('fail');
+      expect(result.score).toBe(0);
     });
+
+    it('should WARN for minimal HTML structure', async () => {
+      const result = await structureAnalyzer.analyze(createContext('<html></html>'));
+
+      expect(result.status).toBe('warn');
+      expect(result.details).toContain('minimal');
+    });
+  });
+
+  describe('Weight', () => {
+    it('should have correct weight of 25', () => {
+      expect(structureAnalyzer.weight).toBe(25);
+    });
+  });
 });

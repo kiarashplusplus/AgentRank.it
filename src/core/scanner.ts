@@ -156,7 +156,8 @@ export async function scanUrl(options: ScanOptions): Promise<ScanResult> {
         narrativeSteps.push({
           action: 'deep_scan_complete',
           result: 'success',
-          humanReadable: 'Deep diagnostic analysis complete. Scores updated based on visual inspection.',
+          humanReadable:
+            'Deep diagnostic analysis complete. Scores updated based on visual inspection.',
         });
       } else {
         narrativeSteps.push({
@@ -198,7 +199,10 @@ export async function scanUrl(options: ScanOptions): Promise<ScanResult> {
           humanReadable: 'I started a visual analysis using browser-use Vision-LLM.',
         });
 
-        const visualResult = await visualEngine.runTask(opts.url, 'Analyze this page and report what you see.');
+        const visualResult = await visualEngine.runTask(
+          opts.url,
+          'Analyze this page and report what you see.'
+        );
 
         if (visualResult.success) {
           narrativeSteps.push({

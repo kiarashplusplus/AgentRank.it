@@ -138,9 +138,7 @@ export const structureAnalyzer: Analyzer = {
       score: 80,
       weight: this.weight,
       details: `Acceptable semantic density (${Math.round(semanticRatio * 100)}% semantic tags)`,
-      recommendations: [
-        'Consider adding more semantic elements to improve agent readability',
-      ],
+      recommendations: ['Consider adding more semantic elements to improve agent readability'],
     };
   },
 };

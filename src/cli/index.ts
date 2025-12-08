@@ -158,17 +158,21 @@ program
           taskId: 'local-task',
           elementFound: engineResult.success,
           transcript: engineResult.output,
-          extractedInfo: engineResult.success ? { output: engineResult.output, steps: engineResult.steps } : undefined,
+          extractedInfo: engineResult.success
+            ? { output: engineResult.output, steps: engineResult.steps }
+            : undefined,
           rawResponse: engineResult.rawResponse,
           error: engineResult.error,
         };
-
       } else {
         // Skyvern Engine (Legacy)
         const { SkyvernEngine } = await import('../engines/skyvern.js');
 
         // Phase icons and colors
-        const phaseConfig: Record<string, { icon: string; color: 'cyan' | 'yellow' | 'blue' | 'green' | 'red' }> = {
+        const phaseConfig: Record<
+          string,
+          { icon: string; color: 'cyan' | 'yellow' | 'blue' | 'green' | 'red' }
+        > = {
           connecting: { icon: '🔌', color: 'cyan' },
           queued: { icon: '⏳', color: 'yellow' },
           running: { icon: '🤖', color: 'blue' },
@@ -202,7 +206,9 @@ program
         const available = await skyvern.isAvailable();
         if (!available) {
           spinner.fail('Skyvern not available');
-          console.error(chalk.red('\n  Start Skyvern with: docker-compose -f docker-compose.skyvern.yml up -d'));
+          console.error(
+            chalk.red('\n  Start Skyvern with: docker-compose -f docker-compose.skyvern.yml up -d')
+          );
           process.exit(1);
         }
 
@@ -217,7 +223,9 @@ program
 
       // Print header
       console.log('\n' + chalk.bold('═══════════════════════════════════════════════════════'));
-      console.log(chalk.bold(`  ${engineType === 'browser-use' ? 'Browser-Use' : 'Skyvern'} Task Result`));
+      console.log(
+        chalk.bold(`  ${engineType === 'browser-use' ? 'Browser-Use' : 'Skyvern'} Task Result`)
+      );
       console.log(chalk.bold('═══════════════════════════════════════════════════════\n'));
 
       // Task info
@@ -267,7 +275,9 @@ program
       // Debug output
       if (options.debug && result.rawResponse) {
         console.log('');
-        console.log(chalk.gray(`  Raw ${engineType === 'browser-use' ? 'Browser-Use' : 'Skyvern'} Response:`));
+        console.log(
+          chalk.gray(`  Raw ${engineType === 'browser-use' ? 'Browser-Use' : 'Skyvern'} Response:`)
+        );
         console.log(chalk.gray(JSON.stringify(result.rawResponse, null, 2)));
       }
 
@@ -282,7 +292,6 @@ program
       process.exit(1);
     }
   });
-
 
 /**
  * Pretty print scan results to the console

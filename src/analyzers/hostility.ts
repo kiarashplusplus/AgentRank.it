@@ -117,7 +117,7 @@ export const hostilityAnalyzer: Analyzer = {
 
 /**
  * Detect known bot-blocking mechanisms
- * 
+ *
  * Uses DOM-aware patterns to avoid false positives from JavaScript bundles
  * that merely reference these identifiers.
  */
@@ -127,14 +127,23 @@ function detectBotBlockers(html: string): string[] {
   // DOM-aware patterns: only match actual elements with these classes/IDs
   const DOM_PATTERNS = [
     // Cloudflare Turnstile - look for actual elements
-    { pattern: /<[^>]+(?:id|class)\s*=\s*["'][^"']*cf-turnstile[^"']*["']/i, name: 'Cloudflare Turnstile' },
-    { pattern: /<[^>]+(?:id|class)\s*=\s*["'][^"']*challenge-running[^"']*["']/i, name: 'Cloudflare Challenge' },
+    {
+      pattern: /<[^>]+(?:id|class)\s*=\s*["'][^"']*cf-turnstile[^"']*["']/i,
+      name: 'Cloudflare Turnstile',
+    },
+    {
+      pattern: /<[^>]+(?:id|class)\s*=\s*["'][^"']*challenge-running[^"']*["']/i,
+      name: 'Cloudflare Challenge',
+    },
     { pattern: /<[^>]+id\s*=\s*["']cf-wrapper["']/i, name: 'Cloudflare Wrapper' },
 
     // Google reCAPTCHA - look for actual elements
     { pattern: /<[^>]+class\s*=\s*["'][^"']*g-recaptcha[^"']*["']/i, name: 'Google reCAPTCHA' },
     { pattern: /<[^>]+id\s*=\s*["']recaptcha["']/i, name: 'Google reCAPTCHA' },
-    { pattern: /<script[^>]+src\s*=\s*["'][^"']*recaptcha\/api\.js[^"']*["']/i, name: 'Google reCAPTCHA' },
+    {
+      pattern: /<script[^>]+src\s*=\s*["'][^"']*recaptcha\/api\.js[^"']*["']/i,
+      name: 'Google reCAPTCHA',
+    },
 
     // hCaptcha - look for actual elements
     { pattern: /<[^>]+class\s*=\s*["'][^"']*h-captcha[^"']*["']/i, name: 'hCaptcha' },

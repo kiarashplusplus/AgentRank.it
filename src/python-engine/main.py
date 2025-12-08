@@ -190,6 +190,11 @@ async def run_scan_stream(request: ScanRequest):
                     agent = Agent(task=full_task, llm=llm, browser=browser)
                     history = await asyncio.wait_for(agent.run(), timeout=60.0)
                     
+                    # Get token usage
+                    prep_input_tokens = history.total_input_tokens() if hasattr(history, 'total_input_tokens') else 0
+                    prep_output_tokens = history.total_output_tokens() if hasattr(history, 'total_output_tokens') else 0
+                    print(f"[Token Usage] Prep action: input={prep_input_tokens}, output={prep_output_tokens}")
+                    
                     # Emit history steps
                     if hasattr(history, 'history'):
                         for i, step in enumerate(history.history):
@@ -205,6 +210,8 @@ async def run_scan_stream(request: ScanRequest):
                     yield sse_event("task_complete", {
                         "signal": "prep",
                         "output": "Prep action completed",
+                        "inputTokens": prep_input_tokens,
+                        "outputTokens": prep_output_tokens,
                     })
                 except asyncio.TimeoutError:
                     yield sse_event("task_failed", {
@@ -240,6 +247,11 @@ async def run_scan_stream(request: ScanRequest):
                     history = await agent.run()
                     result = history.final_result()
                     
+                    # Get token usage
+                    task_input_tokens = history.total_input_tokens() if hasattr(history, 'total_input_tokens') else 0
+                    task_output_tokens = history.total_output_tokens() if hasattr(history, 'total_output_tokens') else 0
+                    print(f"[Token Usage] {task.name}: input={task_input_tokens}, output={task_output_tokens}")
+                    
                     # Emit history steps
                     if hasattr(history, 'history'):
                         for i, step in enumerate(history.history):
@@ -256,11 +268,15 @@ async def run_scan_stream(request: ScanRequest):
                         "signal": task.signal,
                         "success": True,
                         "output": result,
+                        "inputTokens": task_input_tokens,
+                        "outputTokens": task_output_tokens,
                     })
                     
                     yield sse_event("task_complete", {
                         "signal": task.signal,
                         "output": result[:500] if result else "Completed",
+                        "inputTokens": task_input_tokens,
+                        "outputTokens": task_output_tokens,
                     })
                     
                 except Exception as task_err:
@@ -293,12 +309,19 @@ async def run_scan_stream(request: ScanRequest):
                         cleanup_local_video(video_path)
                         yield sse_event("step", {"step": total_step_count + 2, "action": "Video uploaded", "status": "done"})
             
+            # Calculate total tokens
+            total_input_tokens = sum(r.get("inputTokens", 0) for r in results)
+            total_output_tokens = sum(r.get("outputTokens", 0) for r in results)
+            print(f"[Token Usage] TOTAL: input={total_input_tokens}, output={total_output_tokens}")
+            
             # Final complete event
             yield sse_event("complete", {
                 "success": True,
                 "results": results,
                 "videoUrl": video_url,
                 "scanId": scan_id,
+                "totalInputTokens": total_input_tokens,
+                "totalOutputTokens": total_output_tokens,
             })
             
         except Exception as e:
@@ -377,6 +400,11 @@ async def run_task_stream(request: TaskRequest):
             # Browser-use runs in steps, we'll track via history
             history = await agent.run()
             
+            # Get token usage
+            input_tokens = history.total_input_tokens() if hasattr(history, 'total_input_tokens') else 0
+            output_tokens = history.total_output_tokens() if hasattr(history, 'total_output_tokens') else 0
+            print(f"[Token Usage] Task: input={input_tokens}, output={output_tokens}")
+            
             # Process history steps and emit them
             if hasattr(history, 'history'):
                 for i, step in enumerate(history.history):
@@ -418,6 +446,8 @@ async def run_task_stream(request: TaskRequest):
                 "steps": step_count,
                 "videoUrl": video_url,
                 "scanId": scan_id,
+                "inputTokens": input_tokens,
+                "outputTokens": output_tokens,
             })
             
         except Exception as e:
@@ -485,6 +515,11 @@ async def run_task(request: TaskRequest):
         # Run the agent
         history = await agent.run()
         
+        # Get token usage
+        input_tokens = history.total_input_tokens() if hasattr(history, 'total_input_tokens') else 0
+        output_tokens = history.total_output_tokens() if hasattr(history, 'total_output_tokens') else 0
+        print(f"[Token Usage] Task: input={input_tokens}, output={output_tokens}")
+        
         # Get the final result
         result = history.final_result()
         
@@ -509,6 +544,8 @@ async def run_task(request: TaskRequest):
             "transcript": [str(step) for step in history.history] if hasattr(history, 'history') else [],
             "videoUrl": video_url,
             "scanId": scan_id,
+            "inputTokens": input_tokens,
+            "outputTokens": output_tokens,
         }
         
     except Exception as e:

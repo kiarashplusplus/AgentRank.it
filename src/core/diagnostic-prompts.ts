@@ -8,28 +8,28 @@
  */
 
 export interface DiagnosticTask {
-    name: string;
-    signal: 'permissions' | 'structure' | 'accessibility' | 'hydration' | 'hostility';
-    icon: string;
-    prompt: string;
-    parseResult: (output: string) => DiagnosticResult;
+  name: string;
+  signal: 'permissions' | 'structure' | 'accessibility' | 'hydration' | 'hostility';
+  icon: string;
+  prompt: string;
+  parseResult: (output: string) => DiagnosticResult;
 }
 
 export interface DiagnosticResult {
-    score: number; // 0-100
-    status: 'pass' | 'warn' | 'fail';
-    details: string;
-    findings: string[];
+  score: number; // 0-100
+  status: 'pass' | 'warn' | 'fail';
+  details: string;
+  findings: string[];
 }
 
 /**
  * Structure Task: Analyze semantic HTML structure
  */
 export const structureTask: DiagnosticTask = {
-    name: 'Analyzing Structure',
-    signal: 'structure',
-    icon: '🔍',
-    prompt: `Analyze this page's HTML structure and report your findings:
+  name: 'Analyzing Structure',
+  signal: 'structure',
+  icon: '🔍',
+  prompt: `Analyze this page's HTML structure and report your findings:
 
 1. Find and report the main heading (h1 tag)
 2. Check if there is a navigation element (<nav>)
@@ -44,68 +44,68 @@ MAIN: [YES/NO]
 SEMANTIC_COUNT: [number of semantic elements found]
 NOTES: [any observations about the structure]`,
 
-    parseResult: (output: string): DiagnosticResult => {
-        const findings: string[] = [];
-        let score = 100;
+  parseResult: (output: string): DiagnosticResult => {
+    const findings: string[] = [];
+    let score = 100;
 
-        // Parse heading
-        const headingMatch = /HEADING:\s*(.+)/i.exec(output);
-        if (headingMatch?.[1]?.toLowerCase().includes('missing')) {
-            findings.push('Missing main heading (h1)');
-            score -= 20;
-        } else if (headingMatch?.[1]) {
-            findings.push(`Main heading: "${headingMatch[1].trim()}"`);
-        }
+    // Parse heading
+    const headingMatch = /HEADING:\s*(.+)/i.exec(output);
+    if (headingMatch?.[1]?.toLowerCase().includes('missing')) {
+      findings.push('Missing main heading (h1)');
+      score -= 20;
+    } else if (headingMatch?.[1]) {
+      findings.push(`Main heading: "${headingMatch[1].trim()}"`);
+    }
 
-        // Parse nav
-        if (/NAV:\s*NO/i.exec(output)) {
-            findings.push('No navigation element found');
-            score -= 15;
-        } else {
-            findings.push('Navigation element present');
-        }
+    // Parse nav
+    if (/NAV:\s*NO/i.exec(output)) {
+      findings.push('No navigation element found');
+      score -= 15;
+    } else {
+      findings.push('Navigation element present');
+    }
 
-        // Parse main
-        if (/MAIN:\s*NO/i.exec(output)) {
-            findings.push('No main content area defined');
-            score -= 15;
-        } else {
-            findings.push('Main content area defined');
-        }
+    // Parse main
+    if (/MAIN:\s*NO/i.exec(output)) {
+      findings.push('No main content area defined');
+      score -= 15;
+    } else {
+      findings.push('Main content area defined');
+    }
 
-        // Parse semantic count
-        const semanticMatch = /SEMANTIC_COUNT:\s*(\d+)/i.exec(output);
-        const semanticCount = semanticMatch?.[1] ? parseInt(semanticMatch[1], 10) : 0;
-        if (semanticCount < 3) {
-            findings.push(`Low semantic element count (${semanticCount})`);
-            score -= 20;
-        } else {
-            findings.push(`Good semantic structure (${semanticCount} elements)`);
-        }
+    // Parse semantic count
+    const semanticMatch = /SEMANTIC_COUNT:\s*(\d+)/i.exec(output);
+    const semanticCount = semanticMatch?.[1] ? parseInt(semanticMatch[1], 10) : 0;
+    if (semanticCount < 3) {
+      findings.push(`Low semantic element count (${semanticCount})`);
+      score -= 20;
+    } else {
+      findings.push(`Good semantic structure (${semanticCount} elements)`);
+    }
 
-        // Parse notes
-        const notesMatch = /NOTES:\s*(.+)/is.exec(output);
-        if (notesMatch?.[1]) {
-            findings.push(notesMatch[1].trim());
-        }
+    // Parse notes
+    const notesMatch = /NOTES:\s*(.+)/is.exec(output);
+    if (notesMatch?.[1]) {
+      findings.push(notesMatch[1].trim());
+    }
 
-        return {
-            score: Math.max(0, score),
-            status: score >= 80 ? 'pass' : score >= 50 ? 'warn' : 'fail',
-            details: findings.slice(0, 2).join('. '),
-            findings,
-        };
-    },
+    return {
+      score: Math.max(0, score),
+      status: score >= 80 ? 'pass' : score >= 50 ? 'warn' : 'fail',
+      details: findings.slice(0, 2).join('. '),
+      findings,
+    };
+  },
 };
 
 /**
  * Accessibility Task: Check ARIA labels and keyboard navigation
  */
 export const accessibilityTask: DiagnosticTask = {
-    name: 'Testing Accessibility',
-    signal: 'accessibility',
-    icon: '♿',
-    prompt: `Test this page's accessibility and report your findings:
+  name: 'Testing Accessibility',
+  signal: 'accessibility',
+  icon: '♿',
+  prompt: `Test this page's accessibility and report your findings:
 
 1. Find all buttons on the page - count how many have visible text or aria-labels
 2. Find all images - count how many have alt text
@@ -120,81 +120,81 @@ FORMS: [total] inputs, [labeled] have labels
 LINKS: [good/poor] link text quality
 NOTES: [any accessibility concerns found]`,
 
-    parseResult: (output: string): DiagnosticResult => {
-        const findings: string[] = [];
-        let score = 100;
+  parseResult: (output: string): DiagnosticResult => {
+    const findings: string[] = [];
+    let score = 100;
 
-        // Parse buttons
-        const buttonsMatch = /BUTTONS:\s*(\d+)\s*buttons?,\s*(\d+)/i.exec(output);
-        if (buttonsMatch?.[1] && buttonsMatch[2]) {
-            const total = parseInt(buttonsMatch[1], 10);
-            const labeled = parseInt(buttonsMatch[2], 10);
-            if (total > 0) {
-                const ratio = labeled / total;
-                if (ratio < 0.8) {
-                    findings.push(`${total - labeled} of ${total} buttons missing labels`);
-                    score -= 25 * (1 - ratio);
-                } else {
-                    findings.push(`All ${total} buttons properly labeled`);
-                }
-            }
+    // Parse buttons
+    const buttonsMatch = /BUTTONS:\s*(\d+)\s*buttons?,\s*(\d+)/i.exec(output);
+    if (buttonsMatch?.[1] && buttonsMatch[2]) {
+      const total = parseInt(buttonsMatch[1], 10);
+      const labeled = parseInt(buttonsMatch[2], 10);
+      if (total > 0) {
+        const ratio = labeled / total;
+        if (ratio < 0.8) {
+          findings.push(`${total - labeled} of ${total} buttons missing labels`);
+          score -= 25 * (1 - ratio);
+        } else {
+          findings.push(`All ${total} buttons properly labeled`);
         }
+      }
+    }
 
-        // Parse images
-        const imagesMatch = /IMAGES:\s*(\d+)\s*images?,\s*(\d+)/i.exec(output);
-        if (imagesMatch?.[1] && imagesMatch[2]) {
-            const total = parseInt(imagesMatch[1], 10);
-            const withAlt = parseInt(imagesMatch[2], 10);
-            if (total > 0 && withAlt < total) {
-                findings.push(`${total - withAlt} images missing alt text`);
-                score -= 15;
-            }
-        }
+    // Parse images
+    const imagesMatch = /IMAGES:\s*(\d+)\s*images?,\s*(\d+)/i.exec(output);
+    if (imagesMatch?.[1] && imagesMatch[2]) {
+      const total = parseInt(imagesMatch[1], 10);
+      const withAlt = parseInt(imagesMatch[2], 10);
+      if (total > 0 && withAlt < total) {
+        findings.push(`${total - withAlt} images missing alt text`);
+        score -= 15;
+      }
+    }
 
-        // Parse forms
-        const formsMatch = /FORMS:\s*(\d+)\s*inputs?,\s*(\d+)/i.exec(output);
-        if (formsMatch?.[1] && formsMatch[2]) {
-            const total = parseInt(formsMatch[1], 10);
-            const labeled = parseInt(formsMatch[2], 10);
-            if (total > 0 && labeled < total) {
-                findings.push(`${total - labeled} form fields missing labels`);
-                score -= 20;
-            }
-        }
+    // Parse forms
+    const formsMatch = /FORMS:\s*(\d+)\s*inputs?,\s*(\d+)/i.exec(output);
+    if (formsMatch?.[1] && formsMatch[2]) {
+      const total = parseInt(formsMatch[1], 10);
+      const labeled = parseInt(formsMatch[2], 10);
+      if (total > 0 && labeled < total) {
+        findings.push(`${total - labeled} form fields missing labels`);
+        score -= 20;
+      }
+    }
 
-        // Parse links
-        if (/LINKS:\s*poor/i.exec(output)) {
-            findings.push('Poor link text quality detected');
-            score -= 10;
-        }
+    // Parse links
+    if (/LINKS:\s*poor/i.exec(output)) {
+      findings.push('Poor link text quality detected');
+      score -= 10;
+    }
 
-        // Parse notes
-        const notesMatch = /NOTES:\s*(.+)/is.exec(output);
-        if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
-            findings.push(notesMatch[1].trim());
-        }
+    // Parse notes
+    const notesMatch = /NOTES:\s*(.+)/is.exec(output);
+    if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
+      findings.push(notesMatch[1].trim());
+    }
 
-        if (findings.length === 0) {
-            findings.push('Good accessibility practices detected');
-        }
+    if (findings.length === 0) {
+      findings.push('Good accessibility practices detected');
+    }
 
-        return {
-            score: Math.max(0, Math.round(score)),
-            status: score >= 80 ? 'pass' : score >= 50 ? 'warn' : 'fail',
-            details: findings.slice(0, 2).join('. '),
-            findings,
-        };
-    },
+    return {
+      score: Math.max(0, Math.round(score)),
+      status: score >= 80 ? 'pass' : score >= 50 ? 'warn' : 'fail',
+      details: findings.slice(0, 2).join('. '),
+      findings,
+    };
+  },
 };
 
 /**
  * Hydration Task: Measure time-to-interactive
  */
 export const hydrationTask: DiagnosticTask = {
-    name: 'Measuring Hydration',
-    signal: 'hydration',
-    icon: '⏱️',
-    prompt: `Test this page's interactivity and loading behavior:
+  name: 'Measuring Hydration',
+  signal: 'hydration',
+  icon: '⏱️',
+  prompt: `Test this page's interactivity and loading behavior:
 
 1. Note if the page content loaded quickly or slowly
 2. Try clicking the first button or interactive element you see
@@ -209,67 +209,67 @@ RESPONSIVENESS: [immediate/delayed/unresponsive]
 LOADING_INDICATORS: [YES/NO] - saw loading states
 NOTES: [observations about page interactivity]`,
 
-    parseResult: (output: string): DiagnosticResult => {
-        const findings: string[] = [];
-        let score = 100;
+  parseResult: (output: string): DiagnosticResult => {
+    const findings: string[] = [];
+    let score = 100;
 
-        // Parse load time
-        if (/LOAD_TIME:\s*slow/i.exec(output)) {
-            findings.push('Slow page load detected');
-            score -= 30;
-        } else if (/LOAD_TIME:\s*medium/i.exec(output)) {
-            findings.push('Medium load time');
-            score -= 10;
-        } else {
-            findings.push('Fast page load');
-        }
+    // Parse load time
+    if (/LOAD_TIME:\s*slow/i.exec(output)) {
+      findings.push('Slow page load detected');
+      score -= 30;
+    } else if (/LOAD_TIME:\s*medium/i.exec(output)) {
+      findings.push('Medium load time');
+      score -= 10;
+    } else {
+      findings.push('Fast page load');
+    }
 
-        // Parse interactivity
-        if (/INTERACTIVE:\s*NO/i.exec(output)) {
-            findings.push('Unable to interact with elements');
-            score -= 40;
-        }
+    // Parse interactivity
+    if (/INTERACTIVE:\s*NO/i.exec(output)) {
+      findings.push('Unable to interact with elements');
+      score -= 40;
+    }
 
-        // Parse responsiveness
-        if (/RESPONSIVENESS:\s*unresponsive/i.exec(output)) {
-            findings.push('Elements unresponsive');
-            score -= 30;
-        } else if (/RESPONSIVENESS:\s*delayed/i.exec(output)) {
-            findings.push('Delayed element responses');
-            score -= 15;
-        } else {
-            findings.push('Elements respond immediately');
-        }
+    // Parse responsiveness
+    if (/RESPONSIVENESS:\s*unresponsive/i.exec(output)) {
+      findings.push('Elements unresponsive');
+      score -= 30;
+    } else if (/RESPONSIVENESS:\s*delayed/i.exec(output)) {
+      findings.push('Delayed element responses');
+      score -= 15;
+    } else {
+      findings.push('Elements respond immediately');
+    }
 
-        // Parse loading indicators
-        if (/LOADING_INDICATORS:\s*YES/i.exec(output)) {
-            findings.push('Loading states observed (hydration delay)');
-            score -= 10;
-        }
+    // Parse loading indicators
+    if (/LOADING_INDICATORS:\s*YES/i.exec(output)) {
+      findings.push('Loading states observed (hydration delay)');
+      score -= 10;
+    }
 
-        // Parse notes
-        const notesMatch = /NOTES:\s*(.+)/is.exec(output);
-        if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
-            findings.push(notesMatch[1].trim());
-        }
+    // Parse notes
+    const notesMatch = /NOTES:\s*(.+)/is.exec(output);
+    if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
+      findings.push(notesMatch[1].trim());
+    }
 
-        return {
-            score: Math.max(0, Math.round(score)),
-            status: score >= 80 ? 'pass' : score >= 50 ? 'warn' : 'fail',
-            details: findings.slice(0, 2).join('. '),
-            findings,
-        };
-    },
+    return {
+      score: Math.max(0, Math.round(score)),
+      status: score >= 80 ? 'pass' : score >= 50 ? 'warn' : 'fail',
+      details: findings.slice(0, 2).join('. '),
+      findings,
+    };
+  },
 };
 
 /**
  * Hostility Task: Detect bot-blocking and navigation traps
  */
 export const hostilityTask: DiagnosticTask = {
-    name: 'Checking Hostility',
-    signal: 'hostility',
-    icon: '🛡️',
-    prompt: `Check this page for bot-blocking and navigation barriers:
+  name: 'Checking Hostility',
+  signal: 'hostility',
+  icon: '🛡️',
+  prompt: `Check this page for bot-blocking and navigation barriers:
 
 1. Look for CAPTCHA challenges (reCAPTCHA, Cloudflare Turnstile, hCaptcha)
 2. Check for cookie consent banners - can you dismiss them?
@@ -284,64 +284,64 @@ POPUPS: [YES/NO] - intrusive popups present
 CONTENT_ACCESSIBLE: [YES/NO] - can access main content
 NOTES: [description of any barriers encountered]`,
 
-    parseResult: (output: string): DiagnosticResult => {
-        const findings: string[] = [];
-        let score = 100;
+  parseResult: (output: string): DiagnosticResult => {
+    const findings: string[] = [];
+    let score = 100;
 
-        // Parse CAPTCHA
-        if (/CAPTCHA:\s*YES/i.exec(output)) {
-            findings.push('CAPTCHA challenge detected');
-            score -= 50;
-        } else {
-            findings.push('No CAPTCHA detected');
-        }
+    // Parse CAPTCHA
+    if (/CAPTCHA:\s*YES/i.exec(output)) {
+      findings.push('CAPTCHA challenge detected');
+      score -= 50;
+    } else {
+      findings.push('No CAPTCHA detected');
+    }
 
-        // Parse cookie banner
-        if (/COOKIE_BANNER:\s*BLOCKING/i.exec(output)) {
-            findings.push('Cookie banner blocks content');
-            score -= 20;
-        } else if (/COOKIE_BANNER:\s*YES/i.exec(output)) {
-            findings.push('Cookie banner present (dismissible)');
-            score -= 5;
-        }
+    // Parse cookie banner
+    if (/COOKIE_BANNER:\s*BLOCKING/i.exec(output)) {
+      findings.push('Cookie banner blocks content');
+      score -= 20;
+    } else if (/COOKIE_BANNER:\s*YES/i.exec(output)) {
+      findings.push('Cookie banner present (dismissible)');
+      score -= 5;
+    }
 
-        // Parse popups
-        if (/POPUPS:\s*YES/i.exec(output)) {
-            findings.push('Intrusive popups detected');
-            score -= 15;
-        }
+    // Parse popups
+    if (/POPUPS:\s*YES/i.exec(output)) {
+      findings.push('Intrusive popups detected');
+      score -= 15;
+    }
 
-        // Parse content accessibility
-        if (/CONTENT_ACCESSIBLE:\s*NO/i.exec(output)) {
-            findings.push('Main content not accessible');
-            score -= 30;
-        } else {
-            findings.push('Content accessible');
-        }
+    // Parse content accessibility
+    if (/CONTENT_ACCESSIBLE:\s*NO/i.exec(output)) {
+      findings.push('Main content not accessible');
+      score -= 30;
+    } else {
+      findings.push('Content accessible');
+    }
 
-        // Parse notes
-        const notesMatch = /NOTES:\s*(.+)/is.exec(output);
-        if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
-            findings.push(notesMatch[1].trim());
-        }
+    // Parse notes
+    const notesMatch = /NOTES:\s*(.+)/is.exec(output);
+    if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
+      findings.push(notesMatch[1].trim());
+    }
 
-        return {
-            score: Math.max(0, Math.round(score)),
-            status: score >= 80 ? 'pass' : score >= 50 ? 'warn' : 'fail',
-            details: findings.slice(0, 2).join('. '),
-            findings,
-        };
-    },
+    return {
+      score: Math.max(0, Math.round(score)),
+      status: score >= 80 ? 'pass' : score >= 50 ? 'warn' : 'fail',
+      details: findings.slice(0, 2).join('. '),
+      findings,
+    };
+  },
 };
 
 /**
  * Permissions Task: Analyze Agent Economy (robots.txt, ai.txt, token cost)
  */
 export const permissionsTask: DiagnosticTask = {
-    name: 'Permissions & Token Economy',
-    signal: 'permissions',
-    icon: '📜',
-    prompt: `Analyze the 'Agent Economy' of this page. Do not summarize content; assess access costs:
+  name: 'Permissions & Token Economy',
+  signal: 'permissions',
+  icon: '📜',
+  prompt: `Analyze the 'Agent Economy' of this page. Do not summarize content; assess access costs:
 
 1. Check for 'robots.txt' or 'ai.txt' restrictions regarding GPTBot or ClaudeBot.
 2. Estimate 'Token Heaviness': Count the total distinct nodes in the Accessibility Tree. Is it >50k tokens (High Cost)?
@@ -353,60 +353,60 @@ TOKEN_ESTIMATE: [LOW/MED/HIGH]
 CONTEXT_TRAP: [YES/NO]
 NOTES: [Specific agent-blocking directives found]`,
 
-    parseResult: (output: string): DiagnosticResult => {
-        const findings: string[] = [];
-        let score = 100;
+  parseResult: (output: string): DiagnosticResult => {
+    const findings: string[] = [];
+    let score = 100;
 
-        // Parse robots status
-        if (/ROBOTS_STATUS:\s*BLOCKED/i.exec(output)) {
-            findings.push('AI agents blocked by robots.txt');
-            score -= 40;
-        } else if (/ROBOTS_STATUS:\s*UNKNOWN/i.exec(output)) {
-            findings.push('Unable to determine robots.txt status');
-            score -= 10;
-        } else {
-            findings.push('AI agents allowed by robots.txt');
-        }
+    // Parse robots status
+    if (/ROBOTS_STATUS:\s*BLOCKED/i.exec(output)) {
+      findings.push('AI agents blocked by robots.txt');
+      score -= 40;
+    } else if (/ROBOTS_STATUS:\s*UNKNOWN/i.exec(output)) {
+      findings.push('Unable to determine robots.txt status');
+      score -= 10;
+    } else {
+      findings.push('AI agents allowed by robots.txt');
+    }
 
-        // Parse token estimate
-        if (/TOKEN_ESTIMATE:\s*HIGH/i.exec(output)) {
-            findings.push('High token cost (>50k estimated)');
-            score -= 30;
-        } else if (/TOKEN_ESTIMATE:\s*MED/i.exec(output)) {
-            findings.push('Medium token cost');
-            score -= 15;
-        } else {
-            findings.push('Low token cost');
-        }
+    // Parse token estimate
+    if (/TOKEN_ESTIMATE:\s*HIGH/i.exec(output)) {
+      findings.push('High token cost (>50k estimated)');
+      score -= 30;
+    } else if (/TOKEN_ESTIMATE:\s*MED/i.exec(output)) {
+      findings.push('Medium token cost');
+      score -= 15;
+    } else {
+      findings.push('Low token cost');
+    }
 
-        // Parse context trap
-        if (/CONTEXT_TRAP:\s*YES/i.exec(output)) {
-            findings.push('Context trap detected (hidden data dumps)');
-            score -= 20;
-        }
+    // Parse context trap
+    if (/CONTEXT_TRAP:\s*YES/i.exec(output)) {
+      findings.push('Context trap detected (hidden data dumps)');
+      score -= 20;
+    }
 
-        // Parse notes
-        const notesMatch = /NOTES:\s*(.+)/is.exec(output);
-        if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
-            findings.push(notesMatch[1].trim());
-        }
+    // Parse notes
+    const notesMatch = /NOTES:\s*(.+)/is.exec(output);
+    if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
+      findings.push(notesMatch[1].trim());
+    }
 
-        return {
-            score: Math.max(0, Math.round(score)),
-            status: score >= 80 ? 'pass' : score >= 50 ? 'warn' : 'fail',
-            details: findings.slice(0, 2).join('. '),
-            findings,
-        };
-    },
+    return {
+      score: Math.max(0, Math.round(score)),
+      status: score >= 80 ? 'pass' : score >= 50 ? 'warn' : 'fail',
+      details: findings.slice(0, 2).join('. '),
+      findings,
+    };
+  },
 };
 
 /**
  * All diagnostic tasks in execution order
  */
 export const diagnosticTasks: DiagnosticTask[] = [
-    permissionsTask,
-    structureTask,
-    accessibilityTask,
-    hydrationTask,
-    hostilityTask,
+  permissionsTask,
+  structureTask,
+  accessibilityTask,
+  hydrationTask,
+  hostilityTask,
 ];

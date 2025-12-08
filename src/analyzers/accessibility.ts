@@ -108,9 +108,7 @@ export const accessibilityAnalyzer: Analyzer = {
         score: 80,
         weight: this.weight,
         details: `Good: ${labeled} of ${total} interactive elements have labels`,
-        recommendations: [
-          'Add labels to remaining unlabeled elements for perfect accessibility',
-        ],
+        recommendations: ['Add labels to remaining unlabeled elements for perfect accessibility'],
       };
     }
 
