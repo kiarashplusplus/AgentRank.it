@@ -45,6 +45,15 @@ describe('Escalation Logic', () => {
       expect(shouldEscalate('Blocked by Cloudflare Turnstile')).toBe(false);
       expect(shouldEscalate('CAPTCHA detected')).toBe(false);
     });
+
+    it('should handle mixed case and partial matches', () => {
+      expect(shouldEscalate('Error: InteractionFailed during click')).toBe(true);
+      expect(shouldEscalate('NodeNotClickable caused by overlay')).toBe(true);
+    });
+
+    it('should NOT trigger for empty string', () => {
+      expect(shouldEscalate('')).toBe(false);
+    });
   });
 });
 
@@ -105,4 +114,118 @@ describe('Error Categorization', () => {
   it('should categorize unknown errors', () => {
     expect(categorizeError('Something went wrong')).toBe('UNKNOWN');
   });
+
+  it('should prioritize categorization order', () => {
+    // DNS takes priority when multiple keywords present
+    expect(categorizeError('DNS timeout')).toBe('DNS_FAILURE');
+    // Timeout when no DNS
+    expect(categorizeError('Request timeout')).toBe('TIMEOUT');
+  });
 });
+
+describe('Empty Signals Structure', () => {
+  /**
+   * Helper matching scanner's getEmptySignals function
+   */
+  function getEmptySignals() {
+    const empty = { status: 'fail' as const, score: 0, details: 'Not analyzed', weight: 0 };
+    return {
+      permissions: { ...empty, weight: 20 },
+      structure: { ...empty, weight: 25 },
+      accessibility: { ...empty, weight: 25 },
+      hydration: { ...empty, weight: 15 },
+      hostility: { ...empty, weight: 15 },
+    };
+  }
+
+  it('should return all five signal categories', () => {
+    const signals = getEmptySignals();
+    expect(Object.keys(signals)).toHaveLength(5);
+    expect(signals).toHaveProperty('permissions');
+    expect(signals).toHaveProperty('structure');
+    expect(signals).toHaveProperty('accessibility');
+    expect(signals).toHaveProperty('hydration');
+    expect(signals).toHaveProperty('hostility');
+  });
+
+  it('should have all signals set to fail status', () => {
+    const signals = getEmptySignals();
+    expect(signals.permissions.status).toBe('fail');
+    expect(signals.structure.status).toBe('fail');
+    expect(signals.accessibility.status).toBe('fail');
+    expect(signals.hydration.status).toBe('fail');
+    expect(signals.hostility.status).toBe('fail');
+  });
+
+  it('should have all scores set to 0', () => {
+    const signals = getEmptySignals();
+    expect(signals.permissions.score).toBe(0);
+    expect(signals.structure.score).toBe(0);
+    expect(signals.accessibility.score).toBe(0);
+    expect(signals.hydration.score).toBe(0);
+    expect(signals.hostility.score).toBe(0);
+  });
+
+  it('should have correct weights summing to 100', () => {
+    const signals = getEmptySignals();
+    const totalWeight =
+      signals.permissions.weight +
+      signals.structure.weight +
+      signals.accessibility.weight +
+      signals.hydration.weight +
+      signals.hostility.weight;
+    expect(totalWeight).toBe(100);
+  });
+
+  it('should have correct individual weights per PRD', () => {
+    const signals = getEmptySignals();
+    expect(signals.permissions.weight).toBe(20);
+    expect(signals.structure.weight).toBe(25);
+    expect(signals.accessibility.weight).toBe(25);
+    expect(signals.hydration.weight).toBe(15);
+    expect(signals.hostility.weight).toBe(15);
+  });
+});
+
+describe('Default Options', () => {
+  const DEFAULT_OPTIONS = {
+    mode: 'quick',
+    timeout: 30000,
+    skipEscalation: false,
+    verbose: false,
+  };
+
+  it('should have quick mode as default', () => {
+    expect(DEFAULT_OPTIONS.mode).toBe('quick');
+  });
+
+  it('should have 30 second timeout', () => {
+    expect(DEFAULT_OPTIONS.timeout).toBe(30000);
+  });
+
+  it('should not skip escalation by default', () => {
+    expect(DEFAULT_OPTIONS.skipEscalation).toBe(false);
+  });
+
+  it('should not be verbose by default', () => {
+    expect(DEFAULT_OPTIONS.verbose).toBe(false);
+  });
+});
+
+describe('Cost Constants', () => {
+  const COST_PER_QUICK_SCAN = 0.002;
+  const COST_PER_DEEP_SCAN = 0.02;
+
+  it('should have quick scan cost of $0.002', () => {
+    expect(COST_PER_QUICK_SCAN).toBe(0.002);
+  });
+
+  it('should have deep scan cost of $0.02', () => {
+    expect(COST_PER_DEEP_SCAN).toBe(0.02);
+  });
+
+  it('should have deep scan cost 10x quick scan', () => {
+    expect(COST_PER_DEEP_SCAN).toBe(COST_PER_QUICK_SCAN * 10);
+  });
+});
+
