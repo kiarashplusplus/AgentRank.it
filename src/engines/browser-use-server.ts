@@ -21,6 +21,16 @@ export interface BrowserUseServerResult {
     rawResponse?: unknown;
 }
 
+interface EngineApiResponse {
+    success: boolean;
+    output?: string;
+    steps?: number;
+    transcript?: string[];
+    videoUrl?: string;
+    scanId?: string;
+    error?: string;
+}
+
 export class BrowserUseServerEngine {
     private config: Required<BrowserUseServerConfig>;
 
@@ -67,7 +77,7 @@ export class BrowserUseServerEngine {
                 throw new Error(`Engine returned ${response.status}: ${response.statusText}`);
             }
 
-            const data = await response.json() as any;
+            const data = await response.json() as EngineApiResponse;
 
             if (data.success) {
                 return {

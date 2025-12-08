@@ -49,7 +49,7 @@ NOTES: [any observations about the structure]`,
         let score = 100;
 
         // Parse heading
-        const headingMatch = output.match(/HEADING:\s*(.+)/i);
+        const headingMatch = /HEADING:\s*(.+)/i.exec(output);
         if (headingMatch?.[1]?.toLowerCase().includes('missing')) {
             findings.push('Missing main heading (h1)');
             score -= 20;
@@ -58,7 +58,7 @@ NOTES: [any observations about the structure]`,
         }
 
         // Parse nav
-        if (output.match(/NAV:\s*NO/i)) {
+        if (/NAV:\s*NO/i.exec(output)) {
             findings.push('No navigation element found');
             score -= 15;
         } else {
@@ -66,7 +66,7 @@ NOTES: [any observations about the structure]`,
         }
 
         // Parse main
-        if (output.match(/MAIN:\s*NO/i)) {
+        if (/MAIN:\s*NO/i.exec(output)) {
             findings.push('No main content area defined');
             score -= 15;
         } else {
@@ -74,7 +74,7 @@ NOTES: [any observations about the structure]`,
         }
 
         // Parse semantic count
-        const semanticMatch = output.match(/SEMANTIC_COUNT:\s*(\d+)/i);
+        const semanticMatch = /SEMANTIC_COUNT:\s*(\d+)/i.exec(output);
         const semanticCount = semanticMatch?.[1] ? parseInt(semanticMatch[1], 10) : 0;
         if (semanticCount < 3) {
             findings.push(`Low semantic element count (${semanticCount})`);
@@ -84,7 +84,7 @@ NOTES: [any observations about the structure]`,
         }
 
         // Parse notes
-        const notesMatch = output.match(/NOTES:\s*(.+)/is);
+        const notesMatch = /NOTES:\s*(.+)/is.exec(output);
         if (notesMatch?.[1]) {
             findings.push(notesMatch[1].trim());
         }
@@ -125,7 +125,7 @@ NOTES: [any accessibility concerns found]`,
         let score = 100;
 
         // Parse buttons
-        const buttonsMatch = output.match(/BUTTONS:\s*(\d+)\s*buttons?,\s*(\d+)/i);
+        const buttonsMatch = /BUTTONS:\s*(\d+)\s*buttons?,\s*(\d+)/i.exec(output);
         if (buttonsMatch?.[1] && buttonsMatch[2]) {
             const total = parseInt(buttonsMatch[1], 10);
             const labeled = parseInt(buttonsMatch[2], 10);
@@ -141,7 +141,7 @@ NOTES: [any accessibility concerns found]`,
         }
 
         // Parse images
-        const imagesMatch = output.match(/IMAGES:\s*(\d+)\s*images?,\s*(\d+)/i);
+        const imagesMatch = /IMAGES:\s*(\d+)\s*images?,\s*(\d+)/i.exec(output);
         if (imagesMatch?.[1] && imagesMatch[2]) {
             const total = parseInt(imagesMatch[1], 10);
             const withAlt = parseInt(imagesMatch[2], 10);
@@ -152,7 +152,7 @@ NOTES: [any accessibility concerns found]`,
         }
 
         // Parse forms
-        const formsMatch = output.match(/FORMS:\s*(\d+)\s*inputs?,\s*(\d+)/i);
+        const formsMatch = /FORMS:\s*(\d+)\s*inputs?,\s*(\d+)/i.exec(output);
         if (formsMatch?.[1] && formsMatch[2]) {
             const total = parseInt(formsMatch[1], 10);
             const labeled = parseInt(formsMatch[2], 10);
@@ -163,13 +163,13 @@ NOTES: [any accessibility concerns found]`,
         }
 
         // Parse links
-        if (output.match(/LINKS:\s*poor/i)) {
+        if (/LINKS:\s*poor/i.exec(output)) {
             findings.push('Poor link text quality detected');
             score -= 10;
         }
 
         // Parse notes
-        const notesMatch = output.match(/NOTES:\s*(.+)/is);
+        const notesMatch = /NOTES:\s*(.+)/is.exec(output);
         if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
             findings.push(notesMatch[1].trim());
         }
@@ -214,10 +214,10 @@ NOTES: [observations about page interactivity]`,
         let score = 100;
 
         // Parse load time
-        if (output.match(/LOAD_TIME:\s*slow/i)) {
+        if (/LOAD_TIME:\s*slow/i.exec(output)) {
             findings.push('Slow page load detected');
             score -= 30;
-        } else if (output.match(/LOAD_TIME:\s*medium/i)) {
+        } else if (/LOAD_TIME:\s*medium/i.exec(output)) {
             findings.push('Medium load time');
             score -= 10;
         } else {
@@ -225,16 +225,16 @@ NOTES: [observations about page interactivity]`,
         }
 
         // Parse interactivity
-        if (output.match(/INTERACTIVE:\s*NO/i)) {
+        if (/INTERACTIVE:\s*NO/i.exec(output)) {
             findings.push('Unable to interact with elements');
             score -= 40;
         }
 
         // Parse responsiveness
-        if (output.match(/RESPONSIVENESS:\s*unresponsive/i)) {
+        if (/RESPONSIVENESS:\s*unresponsive/i.exec(output)) {
             findings.push('Elements unresponsive');
             score -= 30;
-        } else if (output.match(/RESPONSIVENESS:\s*delayed/i)) {
+        } else if (/RESPONSIVENESS:\s*delayed/i.exec(output)) {
             findings.push('Delayed element responses');
             score -= 15;
         } else {
@@ -242,13 +242,13 @@ NOTES: [observations about page interactivity]`,
         }
 
         // Parse loading indicators
-        if (output.match(/LOADING_INDICATORS:\s*YES/i)) {
+        if (/LOADING_INDICATORS:\s*YES/i.exec(output)) {
             findings.push('Loading states observed (hydration delay)');
             score -= 10;
         }
 
         // Parse notes
-        const notesMatch = output.match(/NOTES:\s*(.+)/is);
+        const notesMatch = /NOTES:\s*(.+)/is.exec(output);
         if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
             findings.push(notesMatch[1].trim());
         }
@@ -289,7 +289,7 @@ NOTES: [description of any barriers encountered]`,
         let score = 100;
 
         // Parse CAPTCHA
-        if (output.match(/CAPTCHA:\s*YES/i)) {
+        if (/CAPTCHA:\s*YES/i.exec(output)) {
             findings.push('CAPTCHA challenge detected');
             score -= 50;
         } else {
@@ -297,22 +297,22 @@ NOTES: [description of any barriers encountered]`,
         }
 
         // Parse cookie banner
-        if (output.match(/COOKIE_BANNER:\s*BLOCKING/i)) {
+        if (/COOKIE_BANNER:\s*BLOCKING/i.exec(output)) {
             findings.push('Cookie banner blocks content');
             score -= 20;
-        } else if (output.match(/COOKIE_BANNER:\s*YES/i)) {
+        } else if (/COOKIE_BANNER:\s*YES/i.exec(output)) {
             findings.push('Cookie banner present (dismissible)');
             score -= 5;
         }
 
         // Parse popups
-        if (output.match(/POPUPS:\s*YES/i)) {
+        if (/POPUPS:\s*YES/i.exec(output)) {
             findings.push('Intrusive popups detected');
             score -= 15;
         }
 
         // Parse content accessibility
-        if (output.match(/CONTENT_ACCESSIBLE:\s*NO/i)) {
+        if (/CONTENT_ACCESSIBLE:\s*NO/i.exec(output)) {
             findings.push('Main content not accessible');
             score -= 30;
         } else {
@@ -320,7 +320,7 @@ NOTES: [description of any barriers encountered]`,
         }
 
         // Parse notes
-        const notesMatch = output.match(/NOTES:\s*(.+)/is);
+        const notesMatch = /NOTES:\s*(.+)/is.exec(output);
         if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
             findings.push(notesMatch[1].trim());
         }
@@ -358,10 +358,10 @@ NOTES: [Specific agent-blocking directives found]`,
         let score = 100;
 
         // Parse robots status
-        if (output.match(/ROBOTS_STATUS:\s*BLOCKED/i)) {
+        if (/ROBOTS_STATUS:\s*BLOCKED/i.exec(output)) {
             findings.push('AI agents blocked by robots.txt');
             score -= 40;
-        } else if (output.match(/ROBOTS_STATUS:\s*UNKNOWN/i)) {
+        } else if (/ROBOTS_STATUS:\s*UNKNOWN/i.exec(output)) {
             findings.push('Unable to determine robots.txt status');
             score -= 10;
         } else {
@@ -369,10 +369,10 @@ NOTES: [Specific agent-blocking directives found]`,
         }
 
         // Parse token estimate
-        if (output.match(/TOKEN_ESTIMATE:\s*HIGH/i)) {
+        if (/TOKEN_ESTIMATE:\s*HIGH/i.exec(output)) {
             findings.push('High token cost (>50k estimated)');
             score -= 30;
-        } else if (output.match(/TOKEN_ESTIMATE:\s*MED/i)) {
+        } else if (/TOKEN_ESTIMATE:\s*MED/i.exec(output)) {
             findings.push('Medium token cost');
             score -= 15;
         } else {
@@ -380,13 +380,13 @@ NOTES: [Specific agent-blocking directives found]`,
         }
 
         // Parse context trap
-        if (output.match(/CONTEXT_TRAP:\s*YES/i)) {
+        if (/CONTEXT_TRAP:\s*YES/i.exec(output)) {
             findings.push('Context trap detected (hidden data dumps)');
             score -= 20;
         }
 
         // Parse notes
-        const notesMatch = output.match(/NOTES:\s*(.+)/is);
+        const notesMatch = /NOTES:\s*(.+)/is.exec(output);
         if (notesMatch?.[1] && notesMatch[1].trim().length > 0) {
             findings.push(notesMatch[1].trim());
         }

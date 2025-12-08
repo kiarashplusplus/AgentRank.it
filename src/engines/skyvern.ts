@@ -78,14 +78,14 @@ interface SkyvernTaskStatus {
   started_at?: string;
   finished_at?: string;
   // Step tracking
-  steps?: Array<{
+  steps?: {
     step_id: string;
     status: string;
     output?: {
       action_type?: string;
       action_description?: string;
     };
-  }>;
+  }[];
 }
 
 /**
