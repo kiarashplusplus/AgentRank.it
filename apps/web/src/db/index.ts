@@ -261,6 +261,131 @@ export const db = {
             params
         );
     },
+
+    // ===========================================
+    // Task History Operations
+    // ===========================================
+
+    /**
+     * Insert a task history entry
+     */
+    async insertTaskHistory(values: {
+        userId: string;
+        url: string;
+        goal: string;
+        timeoutSeconds: number;
+        success: boolean;
+        output?: string | null;
+        error?: string | null;
+        steps?: number | null;
+        durationMs?: number | null;
+        videoUrl?: string | null;
+        inputTokens?: number | null;
+        outputTokens?: number | null;
+        transcript?: string[] | null;
+    }): Promise<void> {
+        const client = new D1HttpClient();
+        await client.query(
+            `INSERT INTO task_history (user_id, url, goal, timeout_seconds, success, output, error, steps, duration_ms, video_url, input_tokens, output_tokens, transcript, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                values.userId,
+                values.url,
+                values.goal,
+                values.timeoutSeconds,
+                values.success ? 1 : 0,
+                values.output ?? null,
+                values.error ?? null,
+                values.steps ?? null,
+                values.durationMs ?? null,
+                values.videoUrl ?? null,
+                values.inputTokens ?? null,
+                values.outputTokens ?? null,
+                values.transcript ? JSON.stringify(values.transcript) : null,
+                Math.floor(Date.now() / 1000),
+            ]
+        );
+    },
+
+    /**
+     * Get all task history entries for a user
+     */
+    async getTaskHistory(userId: string): Promise<Array<{
+        id: number;
+        url: string;
+        goal: string;
+        timeoutSeconds: number;
+        success: boolean;
+        output: string | null;
+        error: string | null;
+        steps: number | null;
+        durationMs: number | null;
+        videoUrl: string | null;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        transcript: string[] | null;
+        createdAt: string;
+    }>> {
+        const client = new D1HttpClient();
+        const result = await client.query<{
+            id: number;
+            url: string;
+            goal: string;
+            timeout_seconds: number;
+            success: number;
+            output: string | null;
+            error: string | null;
+            steps: number | null;
+            duration_ms: number | null;
+            video_url: string | null;
+            input_tokens: number | null;
+            output_tokens: number | null;
+            transcript: string | null;
+            created_at: number;
+        }>(
+            `SELECT * FROM task_history WHERE user_id = ? ORDER BY created_at DESC`,
+            [userId]
+        );
+
+        return result.results.map(row => ({
+            id: row.id,
+            url: row.url,
+            goal: row.goal,
+            timeoutSeconds: row.timeout_seconds,
+            success: row.success === 1,
+            output: row.output,
+            error: row.error,
+            steps: row.steps,
+            durationMs: row.duration_ms,
+            videoUrl: row.video_url,
+            inputTokens: row.input_tokens,
+            outputTokens: row.output_tokens,
+            transcript: row.transcript ? JSON.parse(row.transcript) : null,
+            createdAt: new Date(row.created_at * 1000).toISOString(),
+        }));
+    },
+
+    /**
+     * Delete a single task history entry
+     */
+    async deleteTaskHistoryEntry(id: number, userId: string): Promise<void> {
+        const client = new D1HttpClient();
+        await client.query(
+            `DELETE FROM task_history WHERE id = ? AND user_id = ?`,
+            [id, userId]
+        );
+    },
+
+    /**
+     * Delete all task history entries for a user
+     */
+    async deleteAllTaskHistory(userId: string): Promise<void> {
+        const client = new D1HttpClient();
+        await client.query(
+            `DELETE FROM task_history WHERE user_id = ?`,
+            [userId]
+        );
+    },
 };
 
 /**

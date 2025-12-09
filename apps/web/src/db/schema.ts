@@ -115,3 +115,47 @@ export const pendingDeletions = sqliteTable("pending_deletions", {
 // Type exports for pending deletions
 export type PendingDeletion = typeof pendingDeletions.$inferSelect;
 export type NewPendingDeletion = typeof pendingDeletions.$inferInsert;
+
+/**
+ * Task history for tracking browser automation task runs
+ *
+ * Stores task runs for signed-in users with full result details
+ * including token usage for cost tracking.
+ */
+export const taskHistory = sqliteTable("task_history", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+
+    // Clerk user ID (required - tasks are auth-only)
+    userId: text("user_id").notNull(),
+
+    // Task parameters
+    url: text("url").notNull(),
+    goal: text("goal").notNull(),
+    timeoutSeconds: integer("timeout_seconds").notNull().default(300),
+
+    // Task results
+    success: integer("success", { mode: "boolean" }).notNull(),
+    output: text("output"),
+    error: text("error"),
+    steps: integer("steps"),
+    durationMs: integer("duration_ms"),
+
+    // Video recording URL (if available)
+    videoUrl: text("video_url"),
+
+    // LLM token usage (for cost tracking)
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+
+    // Transcript (JSON array stored as text)
+    transcript: text("transcript"),
+
+    // Timestamp
+    createdAt: integer("created_at", { mode: "timestamp" })
+        .notNull()
+        .$defaultFn(() => new Date()),
+});
+
+// Type exports for task history
+export type TaskHistoryEntry = typeof taskHistory.$inferSelect;
+export type NewTaskHistoryEntry = typeof taskHistory.$inferInsert;

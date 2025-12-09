@@ -10,22 +10,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DELETE } from './route';
 import { auth, clerkClient } from '@clerk/nextjs/server';
-import { createClient } from '@libsql/client';
-import { drizzle } from 'drizzle-orm/libsql';
+
+// Mock the db module
+vi.mock('@/db', () => ({
+    db: {
+        deleteUserCredits: vi.fn(),
+        deleteAllAuditHistory: vi.fn(),
+        insertPendingDeletion: vi.fn(),
+    },
+}));
+
+import { db } from '@/db';
+const mockDb = vi.mocked(db);
 
 // Get mocked modules
 const mockAuth = vi.mocked(auth);
 const mockClerkClient = vi.mocked(clerkClient);
-const mockCreateClient = vi.mocked(createClient);
-const mockDrizzle = vi.mocked(drizzle);
 
 describe('DELETE /api/account/delete', () => {
-    // Mock database and Clerk client
-    const mockDb = {
-        delete: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([]),
-    };
-
     const mockClerk = {
         users: {
             deleteUser: vi.fn().mockResolvedValue({}),
@@ -36,13 +38,10 @@ describe('DELETE /api/account/delete', () => {
         vi.resetAllMocks();
 
         // Setup default mocks
-        mockCreateClient.mockReturnValue({} as ReturnType<typeof createClient>);
-        mockDrizzle.mockReturnValue(mockDb as unknown as ReturnType<typeof drizzle>);
         mockClerkClient.mockResolvedValue(mockClerk as unknown as Awaited<ReturnType<typeof clerkClient>>);
-
-        // Reset database mock chain
-        mockDb.delete.mockReturnThis();
-        mockDb.where.mockResolvedValue([]);
+        mockDb.deleteUserCredits.mockResolvedValue(undefined);
+        mockDb.deleteAllAuditHistory.mockResolvedValue(undefined);
+        mockDb.insertPendingDeletion.mockResolvedValue(undefined);
     });
 
     describe('Authentication', () => {
@@ -75,14 +74,13 @@ describe('DELETE /api/account/delete', () => {
         it('should delete from credits table', async () => {
             await DELETE();
 
-            expect(mockDb.delete).toHaveBeenCalled();
+            expect(mockDb.deleteUserCredits).toHaveBeenCalledWith('user_123');
         });
 
         it('should delete from audit history table', async () => {
             await DELETE();
 
-            // delete is called twice - once for credits, once for auditHistory
-            expect(mockDb.delete).toHaveBeenCalledTimes(2);
+            expect(mockDb.deleteAllAuditHistory).toHaveBeenCalledWith('user_123');
         });
     });
 
@@ -94,7 +92,7 @@ describe('DELETE /api/account/delete', () => {
         it('should delete user from Clerk BEFORE database cleanup', async () => {
             await DELETE();
 
-            // Clerk deletion should be called first
+            // Clerk deletion should be called
             expect(mockClerk.users.deleteUser).toHaveBeenCalledWith('user_123');
         });
 
@@ -133,27 +131,8 @@ describe('DELETE /api/account/delete', () => {
         it('should succeed and queue pending deletion when database cleanup fails', async () => {
             const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
-            // First call to drizzle (for cleanup) throws, second call (for queue) succeeds
-            let callCount = 0;
-            const mockInsertDb = {
-                insert: vi.fn().mockReturnValue({
-                    values: vi.fn().mockResolvedValue([]),
-                }),
-            };
-
-            mockDrizzle.mockImplementation(() => {
-                callCount++;
-                if (callCount === 1) {
-                    // First call - cleanup attempt fails
-                    return {
-                        delete: vi.fn().mockImplementation(() => {
-                            throw new Error('Database connection failed');
-                        }),
-                    } as unknown as ReturnType<typeof drizzle>;
-                }
-                // Second call - queue insert succeeds
-                return mockInsertDb as unknown as ReturnType<typeof drizzle>;
-            });
+            // Make db operations fail
+            mockDb.deleteUserCredits.mockRejectedValue(new Error('Database connection failed'));
 
             const response = await DELETE();
             const data = await response.json();
@@ -169,7 +148,10 @@ describe('DELETE /api/account/delete', () => {
             );
 
             // Verify pending deletion was queued
-            expect(mockInsertDb.insert).toHaveBeenCalled();
+            expect(mockDb.insertPendingDeletion).toHaveBeenCalledWith(
+                'user_123',
+                'Database connection failed'
+            );
 
             consoleErrorSpy.mockRestore();
         });

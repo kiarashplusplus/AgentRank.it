@@ -23,37 +23,18 @@ interface CleanupResponse {
     };
 }
 
-// Mock modules
-vi.mock('@libsql/client', () => ({
-    createClient: vi.fn(() => ({})),
-}));
-
-vi.mock('drizzle-orm/libsql', () => ({
-    drizzle: vi.fn(),
-}));
-
-vi.mock('drizzle-orm', () => ({
-    eq: vi.fn((col, val) => ({ col, val, type: 'eq' })),
-    and: vi.fn((...conditions) => ({ conditions, type: 'and' })),
-    lt: vi.fn((col, val) => ({ col, val, type: 'lt' })),
-}));
-
-vi.mock('@/db/schema', () => ({
-    credits: { userId: 'credits.userId' },
-    auditHistory: { userId: 'auditHistory.userId' },
-    pendingDeletions: {
-        id: 'pendingDeletions.id',
-        userId: 'pendingDeletions.userId',
-        status: 'pendingDeletions.status',
-        retryCount: 'pendingDeletions.retryCount',
+// Mock the db module
+vi.mock('@/db', () => ({
+    db: {
+        getPendingDeletions: vi.fn(),
+        deleteUserCredits: vi.fn(),
+        deleteAllAuditHistory: vi.fn(),
+        updatePendingDeletion: vi.fn(),
     },
 }));
 
-import { createClient } from '@libsql/client';
-import { drizzle } from 'drizzle-orm/libsql';
-
-const mockCreateClient = vi.mocked(createClient);
-const mockDrizzle = vi.mocked(drizzle);
+import { db } from '@/db';
+const mockDb = vi.mocked(db);
 
 function createMockRequest(cronSecret?: string): NextRequest {
     const headers = new Headers();
@@ -67,28 +48,15 @@ function createMockRequest(cronSecret?: string): NextRequest {
 }
 
 describe('POST /api/cron/cleanup-deletions', () => {
-    const mockDb = {
-        select: vi.fn().mockReturnThis(),
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([]),
-        delete: vi.fn().mockReturnThis(),
-        update: vi.fn().mockReturnThis(),
-        set: vi.fn().mockReturnThis(),
-    };
-
     beforeEach(() => {
         vi.resetAllMocks();
         process.env.CRON_SECRET = 'test-secret';
-        mockCreateClient.mockReturnValue({} as ReturnType<typeof createClient>);
-        mockDrizzle.mockReturnValue(mockDb as unknown as ReturnType<typeof drizzle>);
 
-        // Reset mock chain
-        mockDb.select.mockReturnThis();
-        mockDb.from.mockReturnThis();
-        mockDb.where.mockResolvedValue([]);
-        mockDb.delete.mockReturnThis();
-        mockDb.update.mockReturnThis();
-        mockDb.set.mockReturnThis();
+        // Default mocks
+        mockDb.getPendingDeletions.mockResolvedValue([]);
+        mockDb.deleteUserCredits.mockResolvedValue(undefined);
+        mockDb.deleteAllAuditHistory.mockResolvedValue(undefined);
+        mockDb.updatePendingDeletion.mockResolvedValue(undefined);
     });
 
     describe('Authentication', () => {
@@ -122,7 +90,7 @@ describe('POST /api/cron/cleanup-deletions', () => {
 
     describe('Processing pending deletions', () => {
         it('should return success with zero processed when no pending deletions', async () => {
-            mockDb.where.mockResolvedValue([]);
+            mockDb.getPendingDeletions.mockResolvedValue([]);
 
             const request = createMockRequest('test-secret');
             const response = await POST(request);
@@ -134,9 +102,9 @@ describe('POST /api/cron/cleanup-deletions', () => {
         });
 
         it('should process pending deletions and mark as completed on success', async () => {
-            mockDb.where.mockResolvedValueOnce([
-                { id: 1, userId: 'user_123', retryCount: 0, status: 'pending' },
-            ]).mockResolvedValue([]);
+            mockDb.getPendingDeletions.mockResolvedValue([
+                { id: 1, userId: 'user_123', retryCount: 0, status: 'pending', lastError: null },
+            ]);
 
             const request = createMockRequest('test-secret');
             const response = await POST(request);
@@ -145,18 +113,18 @@ describe('POST /api/cron/cleanup-deletions', () => {
             expect(response.status).toBe(200);
             expect(data.results!.processed).toBe(1);
             expect(data.results!.succeeded).toBe(1);
-            expect(mockDb.update).toHaveBeenCalled();
+            expect(mockDb.deleteUserCredits).toHaveBeenCalledWith('user_123');
+            expect(mockDb.deleteAllAuditHistory).toHaveBeenCalledWith('user_123');
+            expect(mockDb.updatePendingDeletion).toHaveBeenCalledWith(1, { status: 'completed' });
         });
 
         it('should increment retry count on failure', async () => {
-            mockDb.where.mockResolvedValueOnce([
-                { id: 1, userId: 'user_123', retryCount: 2, status: 'pending' },
-            ]).mockResolvedValue([]);
+            mockDb.getPendingDeletions.mockResolvedValue([
+                { id: 1, userId: 'user_123', retryCount: 2, status: 'pending', lastError: null },
+            ]);
 
             // Make delete fail
-            mockDb.delete.mockImplementationOnce(() => {
-                throw new Error('DB error');
-            });
+            mockDb.deleteUserCredits.mockRejectedValue(new Error('DB error'));
 
             const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
@@ -168,18 +136,23 @@ describe('POST /api/cron/cleanup-deletions', () => {
             expect(data.results!.processed).toBe(1);
             expect(data.results!.failed).toBe(1);
 
+            // Should update with incremented retry count (2 + 1 = 3)
+            expect(mockDb.updatePendingDeletion).toHaveBeenCalledWith(1, {
+                retryCount: 3,
+                lastError: 'DB error',
+                status: 'pending',
+            });
+
             consoleErrorSpy.mockRestore();
         });
 
         it('should mark as failed after max retries', async () => {
-            mockDb.where.mockResolvedValueOnce([
-                { id: 1, userId: 'user_123', retryCount: 4, status: 'pending' },
-            ]).mockResolvedValue([]);
+            mockDb.getPendingDeletions.mockResolvedValue([
+                { id: 1, userId: 'user_123', retryCount: 4, status: 'pending', lastError: null },
+            ]);
 
             // Make delete fail
-            mockDb.delete.mockImplementationOnce(() => {
-                throw new Error('DB error');
-            });
+            mockDb.deleteUserCredits.mockRejectedValue(new Error('DB error'));
 
             const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
@@ -190,6 +163,13 @@ describe('POST /api/cron/cleanup-deletions', () => {
             expect(response.status).toBe(200);
             expect(data.results!.processed).toBe(1);
             expect(data.results!.markedFailed).toBe(1);
+
+            // Should update with status 'failed' (retry count 4 + 1 = 5 >= MAX_RETRIES)
+            expect(mockDb.updatePendingDeletion).toHaveBeenCalledWith(1, {
+                retryCount: 5,
+                lastError: 'DB error',
+                status: 'failed',
+            });
 
             consoleErrorSpy.mockRestore();
         });

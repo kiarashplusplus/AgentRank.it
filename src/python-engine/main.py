@@ -25,6 +25,14 @@ except ImportError:
     from langchain_openai import ChatOpenAI
     from langchain_anthropic import ChatAnthropic
 
+# Import token tracking callback
+try:
+    from langchain_community.callbacks import get_openai_callback
+    HAS_OPENAI_CALLBACK = True
+except ImportError:
+    HAS_OPENAI_CALLBACK = False
+    get_openai_callback = None
+
 load_dotenv()
 
 app = FastAPI()
@@ -524,6 +532,8 @@ async def run_task(request: TaskRequest):
     video_url = None
     video_dir = RECORDINGS_DIR / scan_id
     browser = None
+    input_tokens = 0
+    output_tokens = 0
     
     try:
         # Create scan-specific video directory
@@ -552,13 +562,19 @@ async def run_task(request: TaskRequest):
             browser=browser,
         )
         
-        # Run the agent
-        history = await agent.run()
-        
-        # Get token usage
-        input_tokens = history.total_input_tokens() if hasattr(history, 'total_input_tokens') else 0
-        output_tokens = history.total_output_tokens() if hasattr(history, 'total_output_tokens') else 0
-        print(f"[Token Usage] Task: input={input_tokens}, output={output_tokens}")
+        # Run the agent with token tracking callback
+        if HAS_OPENAI_CALLBACK:
+            with get_openai_callback() as cb:
+                history = await agent.run()
+                input_tokens = cb.prompt_tokens
+                output_tokens = cb.completion_tokens
+                print(f"[Token Usage] Task: input={input_tokens}, output={output_tokens}, total_cost=${cb.total_cost:.6f}")
+        else:
+            history = await agent.run()
+            # Fallback to history methods (may return 0)
+            input_tokens = history.total_input_tokens() if hasattr(history, 'total_input_tokens') else 0
+            output_tokens = history.total_output_tokens() if hasattr(history, 'total_output_tokens') else 0
+            print(f"[Token Usage] Task (fallback): input={input_tokens}, output={output_tokens}")
         
         # Get the final result
         result = history.final_result()
@@ -588,6 +604,7 @@ async def run_task(request: TaskRequest):
             "outputTokens": output_tokens,
         }
         
+
     except Exception as e:
         import traceback
         print(f"Error running task: {e}")
