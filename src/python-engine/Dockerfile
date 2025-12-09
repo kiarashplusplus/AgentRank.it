@@ -11,8 +11,9 @@ RUN apt-get update && apt-get install -y \
   tini \
   && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user with a fixed UID
-RUN groupadd -r appuser && useradd -r -g appuser -u 1000 appuser
+# Create a non-root user with a fixed UID and home directory
+# browser-use v0.10+ requires a writable home dir for config
+RUN groupadd -r appuser && useradd -r -g appuser -u 1000 -m -d /home/appuser appuser
 
 # Copy requirements and install Python dependencies
 COPY requirements.lock .

@@ -170,12 +170,28 @@ export async function POST(request: NextRequest) {
             clearTimeout(timeoutHandle);
             const durationMs = Date.now() - startTime;
 
-            // Determine error message
+            // Determine error message with better detection
             let errorMessage = "Unknown error";
+            let statusCode = 500;
+
             if (fetchError instanceof Error && fetchError.name === "AbortError") {
                 errorMessage = `Task timed out after ${timeoutSeconds} seconds`;
-            } else if (fetchError instanceof Error && fetchError.message.includes("ECONNREFUSED")) {
+                statusCode = 504;
+            } else if (
+                fetchError instanceof Error &&
+                (fetchError.message.includes("ECONNREFUSED") ||
+                    fetchError.message.includes("fetch failed"))
+            ) {
                 errorMessage = "Browser engine not running. Start with: docker-compose up -d";
+                statusCode = 503;
+            } else if (
+                fetchError instanceof Error &&
+                (fetchError.message.includes("ECONNRESET") ||
+                    (fetchError.cause instanceof Error &&
+                        fetchError.cause.message?.includes("ECONNRESET")))
+            ) {
+                errorMessage = "Browser engine crashed during task execution. Please restart with: docker-compose restart";
+                statusCode = 503;
             } else if (fetchError instanceof Error) {
                 errorMessage = fetchError.message;
             }
@@ -197,21 +213,10 @@ export async function POST(request: NextRequest) {
                 }
             }
 
-            if (fetchError instanceof Error && fetchError.name === "AbortError") {
-                return NextResponse.json(
-                    { error: errorMessage, durationMs, timeoutSeconds },
-                    { status: 504 }
-                );
-            }
-
-            if (fetchError instanceof Error && fetchError.message.includes("ECONNREFUSED")) {
-                return NextResponse.json(
-                    { error: errorMessage },
-                    { status: 503 }
-                );
-            }
-
-            throw fetchError;
+            return NextResponse.json(
+                { error: errorMessage, durationMs, timeoutSeconds },
+                { status: statusCode }
+            );
         }
     } catch (error) {
         console.error("Task error:", error);
