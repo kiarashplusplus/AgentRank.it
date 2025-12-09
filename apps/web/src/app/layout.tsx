@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AgentRank.it - The PageSpeed Insights for the Agentic Web",
+  title: "AgentRank.it - The Page Speed for the Agentic Web",
   description:
     "Measure how reliably an AI agent can navigate your website. Get your Agent Visibility Score.",
 };

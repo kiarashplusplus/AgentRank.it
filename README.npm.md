@@ -1,6 +1,6 @@
 # agentrank
 
-> **The PageSpeed Insights for the Agentic Web**
+> **The Page Speed for the Agentic Web**
 
 [![npm](https://img.shields.io/npm/v/agentrank.svg)](https://www.npmjs.com/package/agentrank)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)

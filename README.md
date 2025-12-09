@@ -1,13 +1,13 @@
 # AgentRank.it
 
-> **The PageSpeed Insights for the Agentic Web**
+> **The Page Speed for the Agentic Web**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![npm](https://img.shields.io/npm/v/agentrank.svg)](https://www.npmjs.com/package/agentrank)
 [![Node.js](https://img.shields.io/badge/Node.js-22%2B-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 
-AgentRank.it measures how reliably an AI agent can navigate your website. While Google PageSpeed Insights measures how fast a site loads for humans, we measure the **Agent Visibility Score** — a 0-100 rating of how well AI agents can understand and interact with your site.
+AgentRank.it measures how reliably an AI agent can navigate your website. While Google Page Speed measures how fast a site loads for humans, we measure the **Agent Visibility Score** — a 0-100 rating of how well AI agents can understand and interact with your site.
 
 **🌐 Try it live at [agentrank.it](https://agentrank.it)**
 

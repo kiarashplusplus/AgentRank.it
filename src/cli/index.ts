@@ -21,7 +21,7 @@ const program = new Command();
 
 program
   .name('agentrank')
-  .description('The PageSpeed Insights for the Agentic Web')
+  .description('The Page Speed for the Agentic Web')
   .version('0.1.0');
 
 program

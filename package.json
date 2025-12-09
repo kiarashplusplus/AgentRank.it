@@ -1,7 +1,7 @@
 {
   "name": "agentrank",
   "version": "0.1.0",
-  "description": "The PageSpeed Insights for the Agentic Web - measure how reliably an AI agent can navigate your site",
+  "description": "The Page Speed for the Agentic Web - measure how reliably an AI agent can navigate your site",
   "author": "Kiarash Adl",
   "license": "Apache-2.0",
   "type": "module",

@@ -1,7 +1,7 @@
 /**
  * AgentRank.it
  *
- * The PageSpeed Insights for the Agentic Web.
+ * The Page Speed for the Agentic Web.
  * Measure how reliably an AI agent can navigate your site.
  *
  * @license Apache-2.0

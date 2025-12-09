@@ -1,5 +1,5 @@
 /**
- * AgentRank.it - The PageSpeed Insights for the Agentic Web
+ * AgentRank.it - The Page Speed for the Agentic Web
  *
  * Core types and interfaces for scan results, signals, and MCP responses.
  *
