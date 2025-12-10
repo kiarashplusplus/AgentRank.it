@@ -278,10 +278,6 @@ export default function Home() {
                         <span className="text-muted-foreground">Cost</span>
                         <span>${result.costUsd.toFixed(4)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Escalated</span>
-                        <span>{result.escalated ? "Yes" : "No"}</span>
-                      </div>
                     </div>
                   </div>
 

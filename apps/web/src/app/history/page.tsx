@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
-import { Trash2, ExternalLink, RefreshCw, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { Trash2, ExternalLink, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 
 interface SignalResult {
     score: number;
@@ -302,12 +302,6 @@ export default function HistoryPage() {
 
                                                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                                     <span className="capitalize">{entry.mode} scan</span>
-                                                    {entry.escalated && (
-                                                        <span className="flex items-center gap-1 text-orange-600 dark:text-orange-400">
-                                                            <AlertTriangle className="h-3 w-3" />
-                                                            Escalated
-                                                        </span>
-                                                    )}
                                                     <span>{formatDate(entry.createdAt)}</span>
                                                     {entry.inputTokens !== null && entry.inputTokens > 0 && (
                                                         <span className="text-xs">
