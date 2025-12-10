@@ -8,6 +8,34 @@ This guide describes how to build, deploy, and maintain the AgentRank browser-us
 - Access to LLM API keys (Azure OpenAI, OpenAI, or Anthropic)
 - (Optional) Cloudflare R2 credentials for video storage
 
+## Development Environment Setup
+
+If you're developing in a dev container, GitHub Codespaces, or any Linux environment where Playwright isn't pre-configured:
+
+### Install Playwright System Dependencies
+
+Playwright requires system libraries for Chromium to run. Install them with:
+
+```bash
+npx playwright install-deps chromium
+```
+
+This installs required packages including:
+- `libatk-1.0-0` (ATK accessibility toolkit)
+- `libgbm1` (Generic Buffer Management)
+- Font packages (`fonts-liberation`, `fonts-noto-color-emoji`, etc.)
+- X11 and graphics libraries
+
+### Fix Directory Permissions
+
+The Docker container runs as UID 1000 (`appuser`). Ensure mounted volumes have correct ownership:
+
+```bash
+sudo chown -R 1000:1000 recordings engine-data
+```
+
+Without this, you may see `Permission denied` errors when the engine tries to save recordings.
+
 ## Environment Setup
 
 1.  Create a `.env` file in the root directory (you can copy `.env.example`);
@@ -94,6 +122,35 @@ Ensure the host user has read/write permissions for these directories, or that t
 ```bash
 chown -R 1000:1000 ./recordings ./engine-data
 ```
+
+## Troubleshooting
+
+### Error: `libatk-1.0.so.0: cannot open shared object file`
+
+**Cause:** Playwright's Chromium dependencies are not installed on the host system.
+
+**Solution:** Install Playwright system dependencies:
+```bash
+npx playwright install-deps chromium
+```
+
+### Error: `Permission denied: '/app/recordings/...`
+
+**Cause:** The Docker container (running as UID 1000) cannot write to the mounted volume.
+
+**Solution:** Fix directory ownership:
+```bash
+sudo chown -R 1000:1000 recordings engine-data
+```
+
+### Browser fails to launch in container
+
+**Cause:** Missing dependencies or insufficient permissions.
+
+**Solution:** 
+1. Verify Dockerfile includes `playwright install-deps chrome`
+2. Ensure `--no-sandbox` flag is used in Chromium launch args (already configured)
+3. Check container logs: `docker logs agentrank-engine`
 
 ## Azure Hosting Config
 

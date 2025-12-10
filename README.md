@@ -102,15 +102,31 @@ R2_BUCKET_NAME=agentrank-replays
 R2_PUBLIC_URL=https://replays.yourdomain.com
 ```
 
-### 2. Start the Engine
+### 2. Install Playwright Dependencies (Dev Containers/Codespaces)
+
+If you're running in a dev container or GitHub Codespaces, you need to install Playwright's system dependencies:
 
 ```bash
-docker-compose -f docker-compose.yml up -d
+npx playwright install-deps chromium
+```
+
+### 3. Set Directory Permissions
+
+Ensure the Docker container can write to the recordings and data directories:
+
+```bash
+sudo chown -R 1000:1000 recordings engine-data
+```
+
+### 4. Start the Engine
+
+```bash
+docker-compose -f docker-compose.yml up -d --build
 ```
 
 This starts the browser-use engine on `http://localhost:8001`.
 
-### 3. Run Deep Mode Audit
+### 5. Run Deep Mode Audit
 
 ```bash
 npx agentrank audit https://example.com --mode=deep

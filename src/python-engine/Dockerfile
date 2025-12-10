@@ -19,15 +19,12 @@ RUN groupadd -r appuser && useradd -r -g appuser -u 1000 -m -d /home/appuser app
 COPY requirements.lock .
 RUN pip install --no-cache-dir -r requirements.lock
 
-# Install uv (provides uvx command needed by browser-use)
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:$PATH"
-
 # Install Playwright browsers and dependencies
 # Playwright needs to install browsers; we do this as root, 
 # but the cached binaries will be accessible.
-RUN playwright install chromium
-RUN playwright install-deps chromium
+# Use chrome instead of chromium as browser-use expects chrome
+RUN playwright install chrome
+RUN playwright install-deps chrome
 
 # Copy application code
 COPY . .
@@ -36,8 +33,12 @@ COPY . .
 # Needed for recording video files
 RUN chown -R appuser:appuser /app
 
-# Switch to non-root user
+# Switch to non-root user BEFORE installing uv
 USER appuser
+
+# Install uv (provides uvx command needed by browser-use) as appuser
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/home/appuser/.local/bin:$PATH"
 
 # Expose port
 EXPOSE 8000
