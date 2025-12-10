@@ -10,8 +10,6 @@ interface SignalResult {
     score: number;
     status: string;
     details: string;
-    weight?: number;
-    recommendations?: string[];
 }
 
 interface HistoryEntry {
@@ -356,153 +354,39 @@ export default function HistoryPage() {
                                     </div>
 
                                     {/* Expanded Details */}
-                                    {isExpanded && signals && (() => {
-                                        // Collect all recommendations across categories
-                                        const allRecommendations: Array<{ signal: string; recommendation: string }> = [];
-                                        Object.entries(signals).forEach(([signalName, signal]) => {
-                                            if (signal.recommendations) {
-                                                signal.recommendations.forEach((rec) => {
-                                                    allRecommendations.push({
-                                                        signal: signalName,
-                                                        recommendation: rec,
-                                                    });
-                                                });
-                                            }
-                                        });
-
-                                        return (
-                                            <div className="border-t bg-muted/30 p-4 space-y-6">
-                                                {/* Signal Details Table */}
-                                                <div>
-                                                    <h4 className="text-sm font-semibold mb-3">Signal Breakdown</h4>
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-sm">
-                                                            <thead>
-                                                                <tr className="border-b">
-                                                                    <th className="text-left py-2 pr-4 font-medium">Category</th>
-                                                                    <th className="text-center py-2 px-2 font-medium">Status</th>
-                                                                    <th className="text-center py-2 px-2 font-medium">Score</th>
-                                                                    <th className="text-center py-2 px-2 font-medium">Weight</th>
-                                                                    <th className="text-left py-2 pl-4 font-medium hidden sm:table-cell">Details</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {Object.entries(signals).map(([signalName, signal]) => (
-                                                                    <tr key={signalName} className="border-b last:border-0">
-                                                                        <td className="py-3 pr-4">
-                                                                            <span className="font-medium">
-                                                                                {getSignalDisplayName(signalName)}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className="py-3 px-2 text-center">
-                                                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${signal.status === "pass"
-                                                                                    ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                                                                    : signal.status === "warn"
-                                                                                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                                                                                        : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                                                                }`}>
-                                                                                {signal.status.toUpperCase()}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className="py-3 px-2 text-center">
-                                                                            <div className="flex items-center justify-center gap-2">
-                                                                                <span className={`font-medium ${getStatusColor(signal.status)}`}>
-                                                                                    {signal.score}
-                                                                                </span>
-                                                                                <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                                                    <div
-                                                                                        className={`h-full ${getScoreColor(signal.score)}`}
-                                                                                        style={{ width: `${signal.score}%` }}
-                                                                                    />
-                                                                                </div>
-                                                                            </div>
-                                                                        </td>
-                                                                        <td className="py-3 px-2 text-center text-muted-foreground">
-                                                                            {signal.weight !== undefined ? `${signal.weight}%` : "-"}
-                                                                        </td>
-                                                                        <td className="py-3 pl-4 hidden sm:table-cell">
-                                                                            <p className="text-muted-foreground text-xs line-clamp-2">
-                                                                                {signal.details || "No details available"}
-                                                                            </p>
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-
-                                                {/* Mobile Details (shown below table on mobile) */}
-                                                <div className="sm:hidden space-y-3">
-                                                    {Object.entries(signals).map(([signalName, signal]) => (
-                                                        signal.details && (
-                                                            <div key={signalName} className="p-3 bg-background rounded-lg border">
-                                                                <span className="font-medium text-xs text-muted-foreground">
-                                                                    {getSignalDisplayName(signalName)}
-                                                                </span>
-                                                                <p className="text-sm mt-1">{signal.details}</p>
-                                                            </div>
-                                                        )
-                                                    ))}
-                                                </div>
-
-                                                {/* Per-Category Recommendations */}
-                                                {Object.entries(signals).some(([, signal]) => signal.recommendations && signal.recommendations.length > 0) && (
-                                                    <div>
-                                                        <h4 className="text-sm font-semibold mb-3">Category Recommendations</h4>
-                                                        <div className="grid gap-3 sm:grid-cols-2">
-                                                            {Object.entries(signals).map(([signalName, signal]) => (
-                                                                signal.recommendations && signal.recommendations.length > 0 && (
-                                                                    <div key={signalName} className="p-3 bg-background rounded-lg border">
-                                                                        <div className="flex items-center gap-2 mb-2">
-                                                                            <span className="font-medium text-sm">
-                                                                                {getSignalDisplayName(signalName)}
-                                                                            </span>
-                                                                        </div>
-                                                                        <ul className="space-y-1">
-                                                                            {signal.recommendations.map((rec, idx) => (
-                                                                                <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
-                                                                                    <span className="text-primary mt-0.5">→</span>
-                                                                                    <span>{rec}</span>
-                                                                                </li>
-                                                                            ))}
-                                                                        </ul>
-                                                                    </div>
-                                                                )
-                                                            ))}
+                                    {isExpanded && signals && (
+                                        <div className="border-t bg-muted/30 p-4">
+                                            <h4 className="text-sm font-semibold mb-3">Signal Details</h4>
+                                            <div className="grid gap-3 sm:grid-cols-2">
+                                                {Object.entries(signals).map(([signalName, signal]) => (
+                                                    <div
+                                                        key={signalName}
+                                                        className="p-3 bg-background rounded-lg border"
+                                                    >
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className="font-medium text-sm">
+                                                                {getSignalDisplayName(signalName)}
+                                                            </span>
+                                                            <span className={`text-sm font-medium ${getStatusColor(signal.status)}`}>
+                                                                {signal.score}/100
+                                                            </span>
                                                         </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Aggregated Recommendations */}
-                                                {allRecommendations.length > 0 && (
-                                                    <div className="border-t pt-4">
-                                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                                                            <span>📋</span>
-                                                            All Recommendations ({allRecommendations.length})
-                                                        </h4>
-                                                        <div className="bg-background rounded-lg border p-4">
-                                                            <ul className="space-y-2">
-                                                                {allRecommendations.map((item, idx) => (
-                                                                    <li key={idx} className="flex items-start gap-3 text-sm">
-                                                                        <span className={`text-xs px-1.5 py-0.5 rounded ${item.signal === "permissions" ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" :
-                                                                                item.signal === "structure" ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300" :
-                                                                                    item.signal === "accessibility" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" :
-                                                                                        item.signal === "hydration" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300" :
-                                                                                            "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                                                                            }`}>
-                                                                            {item.signal.slice(0, 4).toUpperCase()}
-                                                                        </span>
-                                                                        <span className="text-muted-foreground">{item.recommendation}</span>
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
+                                                        <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2">
+                                                            <div
+                                                                className={`h-full ${getScoreColor(signal.score)}`}
+                                                                style={{ width: `${signal.score}%` }}
+                                                            />
                                                         </div>
+                                                        {signal.details && (
+                                                            <p className="text-xs text-muted-foreground line-clamp-2">
+                                                                {signal.details}
+                                                            </p>
+                                                        )}
                                                     </div>
-                                                )}
+                                                ))}
                                             </div>
-                                        );
-                                    })()}
+                                        </div>
+                                    )}
 
                                     {/* Expanded but no signals */}
                                     {isExpanded && !signals && (
