@@ -113,9 +113,9 @@ export default function Home() {
                 weight: name === "permissions" ? 20 : name === "structure" || name === "accessibility" ? 25 : 15,
                 details: (sig as { details: string }).details,
               })),
-              creditsRemaining: null,
-              tier: "free",
-              userId: null,
+              creditsRemaining: data.creditsRemaining ?? null,
+              tier: data.tier || "anonymous",
+              userId: data.userId || null,
               videoUrl: data.videoUrl,
             });
             setIsLoading(false);

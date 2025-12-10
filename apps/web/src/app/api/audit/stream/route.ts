@@ -67,6 +67,9 @@ export async function GET(request: NextRequest) {
 
     // Auth and credit check
     const { userId } = await auth();
+    let initialCreditsRemaining: number | null = null;
+    let userTier = "anonymous";
+
     if (userId) {
         // Authenticated user - check credits (deep scans use "deep" type)
         const creditCheck = await db.checkCredits(userId, "deep");
@@ -78,6 +81,8 @@ export async function GET(request: NextRequest) {
                 { status: 429, headers: { "Content-Type": "application/json" } }
             );
         }
+        initialCreditsRemaining = creditCheck.remaining;
+        userTier = creditCheck.tier;
     } else {
         // Anonymous user - check IP-based rate limit
         const ip = getClientIp(request);
@@ -85,6 +90,7 @@ export async function GET(request: NextRequest) {
         if (!limitCheck.allowed) {
             return new Response("Rate limit exceeded", { status: 429 });
         }
+        initialCreditsRemaining = limitCheck.remaining;
     }
 
     // Create SSE stream
@@ -238,6 +244,7 @@ export async function GET(request: NextRequest) {
                                     const agentScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 50;
 
                                     // Save to audit history and deduct credits for authenticated users
+                                    let finalCreditsRemaining = initialCreditsRemaining;
                                     if (userId) {
                                         try {
                                             await db.insertAuditHistory({
@@ -254,6 +261,11 @@ export async function GET(request: NextRequest) {
 
                                             // Deduct credit after successful scan
                                             await db.deductCredit(userId, "deep");
+
+                                            // Update remaining credits after deduction
+                                            if (finalCreditsRemaining !== null && finalCreditsRemaining > 0) {
+                                                finalCreditsRemaining = finalCreditsRemaining - 1;
+                                            }
                                         } catch (historyError) {
                                             console.error("Failed to save audit history or deduct credit:", historyError);
                                         }
@@ -267,6 +279,9 @@ export async function GET(request: NextRequest) {
                                         videoUrl: lastVideoUrl,
                                         inputTokens: totalInputTokens,
                                         outputTokens: totalOutputTokens,
+                                        creditsRemaining: finalCreditsRemaining,
+                                        tier: userTier,
+                                        userId: userId || null,
                                     });
                                 } else if (event.type === "error") {
                                     send({ type: "error", message: event.message });
