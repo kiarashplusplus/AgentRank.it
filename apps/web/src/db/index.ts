@@ -186,6 +186,112 @@ export const db = {
     },
 
     /**
+     * Check if a user has credits for a scan
+     */
+    async checkCredits(userId: string, scanType: "quick" | "deep"): Promise<{
+        allowed: boolean;
+        remaining: number;
+        tier: string;
+        resetAt: Date | null;
+    }> {
+        const client = new D1HttpClient();
+        const result = await client.query<{
+            user_id: string;
+            quick_remaining: number;
+            deep_remaining: number;
+            tier: string;
+            reset_at: number | null;
+        }>(
+            `SELECT * FROM credits WHERE user_id = ? LIMIT 1`,
+            [userId]
+        );
+
+        // Helper to get next month reset date (1st of next month)
+        const getNextMonthReset = (): Date => {
+            const now = new Date();
+            return new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        };
+
+        // Create default credits for new users
+        if (result.results.length === 0) {
+            const resetAt = getNextMonthReset();
+            await client.query(
+                `INSERT INTO credits (user_id, quick_remaining, deep_remaining, tier, reset_at, created_at, updated_at)
+                 VALUES (?, 50, 5, 'free', ?, ?, ?)`,
+                [userId, Math.floor(resetAt.getTime() / 1000), Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)]
+            );
+
+            return {
+                allowed: true,
+                remaining: scanType === "quick" ? 50 : 5,
+                tier: "free",
+                resetAt: resetAt,
+            };
+        }
+
+        const credit = result.results[0];
+        const resetAt = credit.reset_at ? new Date(credit.reset_at * 1000) : null;
+
+        // Check if reset is needed
+        if (resetAt && new Date() > resetAt) {
+            const newLimits = credit.tier === "premium"
+                ? { quick: 500, deep: 100 }
+                : { quick: 50, deep: 5 };
+
+            const newResetAt = getNextMonthReset();
+            await client.query(
+                `UPDATE credits SET quick_remaining = ?, deep_remaining = ?, reset_at = ?, updated_at = ? WHERE user_id = ?`,
+                [newLimits.quick, newLimits.deep, Math.floor(newResetAt.getTime() / 1000), Math.floor(Date.now() / 1000), userId]
+            );
+
+            return {
+                allowed: true,
+                remaining: scanType === "quick" ? newLimits.quick : newLimits.deep,
+                tier: credit.tier,
+                resetAt: newResetAt,
+            };
+        }
+
+        const remaining = scanType === "quick" ? credit.quick_remaining : credit.deep_remaining;
+
+        return {
+            allowed: remaining > 0,
+            remaining,
+            tier: credit.tier,
+            resetAt,
+        };
+    },
+
+    /**
+     * Deduct a credit after successful scan
+     */
+    async deductCredit(userId: string, scanType: "quick" | "deep"): Promise<void> {
+        const client = new D1HttpClient();
+        const result = await client.query<{
+            quick_remaining: number;
+            deep_remaining: number;
+        }>(
+            `SELECT quick_remaining, deep_remaining FROM credits WHERE user_id = ? LIMIT 1`,
+            [userId]
+        );
+
+        if (result.results.length === 0) {
+            throw new Error("Credit record not found");
+        }
+
+        const credit = result.results[0];
+        const updates = scanType === "quick"
+            ? { quickRemaining: Math.max(0, credit.quick_remaining - 1) }
+            : { deepRemaining: Math.max(0, credit.deep_remaining - 1) };
+
+        const column = scanType === "quick" ? "quick_remaining" : "deep_remaining";
+        await client.query(
+            `UPDATE credits SET ${column} = ?, updated_at = ? WHERE user_id = ?`,
+            [scanType === "quick" ? updates.quickRemaining : updates.deepRemaining, Math.floor(Date.now() / 1000), userId]
+        );
+    },
+
+    /**
      * Insert pending deletion
      */
     async insertPendingDeletion(userId: string, lastError: string): Promise<void> {

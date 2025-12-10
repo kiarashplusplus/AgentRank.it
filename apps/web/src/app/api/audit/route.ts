@@ -103,10 +103,22 @@ export async function POST(request: NextRequest) {
 
         if (userId) {
             // Authenticated user - check credits from D1
-            // NOTE: D1 integration requires Cloudflare deployment
-            // For now, allow unlimited for authenticated users in dev
-            tier = "free";
-            creditsRemaining = 50; // Placeholder until D1 is configured
+            const scanType: "quick" | "deep" = mode === "deep" ? "deep" : "quick";
+            const creditCheck = await db.checkCredits(userId, scanType);
+
+            if (!creditCheck.allowed) {
+                return NextResponse.json(
+                    {
+                        error: `No ${scanType} scans remaining. Your credits reset ${creditCheck.resetAt ? creditCheck.resetAt.toLocaleDateString() : 'next month'}.`,
+                        creditsRemaining: 0,
+                        tier: creditCheck.tier,
+                    },
+                    { status: 429 }
+                );
+            }
+
+            tier = creditCheck.tier;
+            creditsRemaining = creditCheck.remaining;
         } else {
             // Anonymous user - check IP-based rate limit
             const ip = getClientIp(request);
@@ -236,7 +248,7 @@ export async function POST(request: NextRequest) {
             userId: userId || null,
         };
 
-        // Save to audit history for authenticated users
+        // Save to audit history and deduct credits for authenticated users
         if (userId) {
             try {
                 await db.insertAuditHistory({
@@ -248,9 +260,19 @@ export async function POST(request: NextRequest) {
                     costUsd: Math.round((responseData.costUsd || 0) * 1000000), // Convert to microdollars
                     resultJson: JSON.stringify(result),
                 });
+
+                // Deduct credit after successful scan
+                const scanType: "quick" | "deep" = mode === "deep" ? "deep" : "quick";
+                await db.deductCredit(userId, scanType);
+
+                // Update creditsRemaining to reflect the deduction
+                if (creditsRemaining !== null && creditsRemaining > 0) {
+                    creditsRemaining = creditsRemaining - 1;
+                    responseData.creditsRemaining = creditsRemaining;
+                }
             } catch (historyError) {
                 // Log but don't fail the request if history save fails
-                console.error("Failed to save audit history:", historyError);
+                console.error("Failed to save audit history or deduct credit:", historyError);
             }
         }
 

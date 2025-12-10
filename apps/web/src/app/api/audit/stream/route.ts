@@ -65,9 +65,21 @@ export async function GET(request: NextRequest) {
         return new Response("URL required", { status: 400 });
     }
 
-    // Auth check
+    // Auth and credit check
     const { userId } = await auth();
-    if (!userId) {
+    if (userId) {
+        // Authenticated user - check credits (deep scans use "deep" type)
+        const creditCheck = await db.checkCredits(userId, "deep");
+        if (!creditCheck.allowed) {
+            return new Response(
+                JSON.stringify({
+                    error: `No deep scans remaining. Your credits reset ${creditCheck.resetAt ? creditCheck.resetAt.toLocaleDateString() : 'next month'}.`
+                }),
+                { status: 429, headers: { "Content-Type": "application/json" } }
+            );
+        }
+    } else {
+        // Anonymous user - check IP-based rate limit
         const ip = getClientIp(request);
         const limitCheck = checkAnonymousLimit(ip);
         if (!limitCheck.allowed) {
@@ -225,7 +237,7 @@ export async function GET(request: NextRequest) {
 
                                     const agentScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 50;
 
-                                    // Save to audit history for authenticated users
+                                    // Save to audit history and deduct credits for authenticated users
                                     if (userId) {
                                         try {
                                             await db.insertAuditHistory({
@@ -239,8 +251,11 @@ export async function GET(request: NextRequest) {
                                                 outputTokens: totalOutputTokens,
                                                 resultJson: JSON.stringify({ signals: results, videoUrl: lastVideoUrl }),
                                             });
+
+                                            // Deduct credit after successful scan
+                                            await db.deductCredit(userId, "deep");
                                         } catch (historyError) {
-                                            console.error("Failed to save audit history:", historyError);
+                                            console.error("Failed to save audit history or deduct credit:", historyError);
                                         }
                                     }
 
