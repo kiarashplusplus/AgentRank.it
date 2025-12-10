@@ -19,6 +19,10 @@ RUN groupadd -r appuser && useradd -r -g appuser -u 1000 -m -d /home/appuser app
 COPY requirements.lock .
 RUN pip install --no-cache-dir -r requirements.lock
 
+# Install uv (provides uvx command needed by browser-use)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
 # Install Playwright browsers and dependencies
 # Playwright needs to install browsers; we do this as root, 
 # but the cached binaries will be accessible.
