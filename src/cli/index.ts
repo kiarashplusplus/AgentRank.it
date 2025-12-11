@@ -19,10 +19,7 @@ import type { ScanOptions, ScanResult } from '../types/index.js';
 
 const program = new Command();
 
-program
-  .name('agentrank')
-  .description('The Page Speed for the Agentic Web')
-  .version('0.1.0');
+program.name('agentrank').description('The Page Speed for the Agentic Web').version('0.1.0');
 
 program
   .command('audit')

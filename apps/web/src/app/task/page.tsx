@@ -216,32 +216,6 @@ export default function TaskPage() {
                                 </div>
                             </div>
 
-                            {/* Token Usage Stats */}
-                            {(result.inputTokens !== undefined || result.outputTokens !== undefined) && (
-                                <div className="flex gap-4 p-3 rounded-lg bg-muted/50">
-                                    <div className="flex items-center gap-2">
-                                        <Zap className="h-4 w-4 text-yellow-500" />
-                                        <span className="text-sm text-muted-foreground">Tokens:</span>
-                                    </div>
-                                    <div className="flex gap-4 text-sm">
-                                        <span>
-                                            <span className="text-muted-foreground">In:</span>{" "}
-                                            <span className="font-mono">{formatTokens(result.inputTokens || 0)}</span>
-                                        </span>
-                                        <span>
-                                            <span className="text-muted-foreground">Out:</span>{" "}
-                                            <span className="font-mono">{formatTokens(result.outputTokens || 0)}</span>
-                                        </span>
-                                        <span>
-                                            <span className="text-muted-foreground">Total:</span>{" "}
-                                            <span className="font-mono font-medium">
-                                                {formatTokens((result.inputTokens || 0) + (result.outputTokens || 0))}
-                                            </span>
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-
                             {result.output && (
                                 <div className="pt-4 border-t">
                                     <h3 className="text-sm font-medium mb-2">Result</h3>
