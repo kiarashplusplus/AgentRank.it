@@ -202,20 +202,25 @@ export async function POST(request: NextRequest) {
 
         // (robots.txt already checked above for both original and redirected URLs)
 
-        // Path to the AgentRank CLI (relative to monorepo root)
-        const cliPath = path.resolve(process.cwd(), "../../dist/cli/index.js");
+        // Path to the AgentRank CLI
+        // Can be configured via AGENTRANK_CLI_PATH env var
+        // Defaults to 'agentrank' (uses npx or global install)
+        const cliPath = process.env.AGENTRANK_CLI_PATH || "agentrank";
+        
+        // Determine if we're using a local file path or command name
+        const isLocalPath = cliPath.includes("/") || cliPath.includes("\\");
+        const command = isLocalPath 
+            ? `node "${path.resolve(cliPath)}" audit "${targetUrl}" --mode ${mode} --json`
+            : `npx ${cliPath} audit "${targetUrl}" --mode ${mode} --json`;
 
         // Deep mode requires more time for Skyvern analysis
         const timeout = mode === "deep" ? 180000 : 60000;
 
         // Run the audit command with mode (use validated/redirected URL)
-        const { stdout, stderr } = await execAsync(
-            `node "${cliPath}" audit "${targetUrl}" --mode ${mode} --json`,
-            {
-                timeout,
-                cwd: path.resolve(process.cwd(), "../.."),
-            }
-        );
+        const { stdout, stderr } = await execAsync(command, {
+            timeout,
+            cwd: process.cwd(),
+        });
 
         if (stderr) {
             console.error("CLI stderr:", stderr);

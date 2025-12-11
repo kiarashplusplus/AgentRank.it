@@ -1,0 +1,59 @@
+services:
+  # AgentRank Web Application
+  web:
+    build: .
+    container_name: agentrank-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Clerk Authentication
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+      - NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+      
+      # Cloudflare D1 Database
+      - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID}
+      - CLOUDFLARE_D1_DATABASE_ID=${CLOUDFLARE_D1_DATABASE_ID}
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      
+      # AgentRank CLI (use npx or global install)
+      - AGENTRANK_CLI_PATH=agentrank
+      
+      # Browser-Use Engine (optional, for deep mode)
+      - ENGINE_URL=${ENGINE_URL:-http://engine:8000}
+      
+      # Cron secret
+      - CRON_SECRET=${CRON_SECRET}
+    depends_on:
+      - engine
+
+  # Browser-Use Engine for Deep Mode (optional)
+  engine:
+    image: agentrank/engine:latest
+    container_name: agentrank-engine
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-4o}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION:-2024-02-15-preview}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_ACCESS_KEY=${R2_ACCESS_KEY}
+      - R2_SECRET_KEY=${R2_SECRET_KEY}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME:-agentrank-replays}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
+    volumes:
+      - engine-data:/app/data
+      - recordings:/app/recordings
+
+volumes:
+  engine-data:
+  recordings:

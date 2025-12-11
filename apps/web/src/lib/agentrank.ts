@@ -1,13 +1,20 @@
 /**
  * AgentRank Core Library
  * 
- * Re-exports from the core package for use in the web app.
- * This allows the web app to be decoupled in the future.
+ * Diagnostic tasks and types for AgentRank deep scanning.
+ * This is a standalone version that doesn't require the core package.
  */
 
-// When published, this would be: import { ... } from 'agentrank'
-// For now, use relative import to the built dist
-import type { DiagnosticTask } from '../../../../dist/core/diagnostic-prompts.js';
+/**
+ * Represents a diagnostic task for deep scanning
+ */
+export interface DiagnosticTask {
+    name: string;
+    signal: string;
+    icon: string;
+    hint: string;
+    prompt: string;
+}
 
 /**
  * Diagnostic tasks for deep scanning.
@@ -101,5 +108,3 @@ CONTENT_ACCESSIBLE: [YES/NO] - can you reach the main content?
 NOTES: [any observations about bot-blocking]`,
         },
     ];
-
-export type { DiagnosticTask };

@@ -1,6 +1,28 @@
 {
-  "name": "web",
+  "name": "agentrank-web",
   "version": "0.1.0",
+  "description": "Web interface for AgentRank.it - The Page Speed for the Agentic Web",
+  "author": "Kiarash Adl",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kiarashplusplus/agentrank-web.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kiarashplusplus/agentrank-web/issues"
+  },
+  "homepage": "https://agentrank.it",
+  "keywords": [
+    "agentrank",
+    "ai-agents",
+    "web-accessibility",
+    "seo",
+    "automation",
+    "nextjs"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,7 +30,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.0",
